@@ -108,10 +108,6 @@ void taskSensors(void *pvParameters)
     bool sensor1DetectsNow = isObjectDetected(SENSOR1_PIN);
     bool sensor2DetectsNow = isObjectDetected(SENSOR2_PIN);
 
-    Serial.printf("[DEBUG] S1: %s | S2: %s\n", 
-                  sensor1DetectsNow ? "DETECTADO" : "livre", 
-                  sensor2DetectsNow ? "DETECTADO" : "livre");
-
     // Sensor 1 detectou objeto (borda de subida)
     if (!sensor1Blocked && sensor1DetectsNow)
     {
