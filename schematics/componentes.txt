@@ -1,0 +1,79 @@
+LISTA DE MATERIAIS (BOM) - SmartEntryTracker
+==============================================
+
+MICROCONTROLADOR
+-----------------
+[ ] 1x ESP32 NodeMCU (ESP-WROOM-32)
+    - Tensão: 3.3V (regulado internamente de 5V USB)
+    - Wi-Fi: 802.11 b/g/n
+    - Dual Core: 240MHz
+    - Memória: 520KB SRAM
+
+SENSORES
+--------
+[ ] 2x Módulo Sensor Infravermelho MH
+    - Modelo: MH-Sensor-Series
+    - Tensão: 3.3V - 5V
+    - Saída: Digital (D0) e Analógica (A0)
+    - Alcance: 2-30cm (ajustável)
+    - Ângulo: ~35°
+    
+COMPONENTES ELETRÔNICOS
+-----------------------
+[ ] 1x Cabo USB (Micro-USB ou Type-C conforme ESP32)
+    - Para programação e alimentação
+    
+[ ] 6x Jumpers macho-fêmea
+    - Para conexão dos sensores
+    
+[ ] 1x Breadboard (opcional)
+    - Para prototipação
+    - Tamanho: 400 ou 830 pontos
+
+OPCIONAL
+--------
+[ ] 2x Resistores 10kΩ (se necessário pull-up externo)
+[ ] 1x Fonte 5V 2A (alimentação alternativa)
+[ ] 1x Case/caixa para montagem final
+[ ] Parafusos M3 para fixação
+
+FERRAMENTAS NECESSÁRIAS
+-----------------------
+[ ] Computador com PlatformIO
+[ ] Chave de fenda (para ajuste de sensibilidade)
+[ ] Multímetro (para testes)
+
+RASPBERRY PI (BROKER)
+--------------------
+[ ] 1x Raspberry Pi 3B+ ou 4
+[ ] 1x Cartão microSD 16GB+ (com Raspberry Pi OS)
+[ ] 1x Fonte 5V 3A USB-C
+[ ] 1x Cabo Ethernet (opcional, pode usar Wi-Fi)
+
+ESTIMATIVA DE CUSTO
+-------------------
+ESP32 NodeMCU:           R$ 40,00
+2x Sensor MH IR:         R$ 20,00
+Jumpers (kit):           R$ 10,00
+Breadboard:              R$ 15,00
+Raspberry Pi 4 (2GB):    R$ 350,00
+Cartão microSD 16GB:     R$ 30,00
+Fonte Raspberry:         R$ 35,00
+-----------------------------------------
+TOTAL APROXIMADO:        R$ 500,00
+
+ONDE COMPRAR
+-----------
+- Eletrogate
+- FilipeFlop
+- Baú da Eletrônica
+- MercadoLivre
+- AliExpress (esperar envio)
+
+OBSERVAÇÕES
+-----------
+1. Valores podem variar conforme fornecedor e região
+2. Verificar disponibilidade no lab da escola
+3. Considerar compra em grupo para reduzir custos
+4. Raspberry Pi pode ser substituído por PC Linux para testes
+
