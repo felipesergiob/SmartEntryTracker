@@ -1,20 +1,32 @@
+/*
+ * SmartEntryTracker - Contador de pessoas com sensores MH Infravermelho
+ * 
+ * Sensores: MH Serie IR (possui 4 pinos: VCC, GND, A0, D0)
+ * Usamos: VCC(3.3V), GND, D0(saída digital)
+ * Não usar: A0 (saída analógica)
+ * 
+ * Lógica: D0 = LOW quando detecta objeto, HIGH quando livre
+ * 
+ * Conexões:
+ * - Sensor 1: D0 → GPIO 13 (SENSOR1_PIN)
+ * - Sensor 2: D0 → GPIO 14 (SENSOR2_PIN)
+ * 
+ * Funcionamento: Detecta entrada (S1->S2) e saída (S2->S1)
+ */
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-const char *ssid = "uaifai-tiradentes";
-const char *password = "bemvindoaocesar";
+const char *ssid = "VIVOFIBRA-06A6";
+const char *password = "i3isPrAaJN";
 
-const char *mqtt_server = "172.26.71.24";
+const char *mqtt_server = "192.168.15.3";
 const uint16_t MQTT_PORT = 1883;
 
-#define SENSOR1_TRIG 13
-#define SENSOR1_ECHO 26
-#define SENSOR2_TRIG 14
-#define SENSOR2_ECHO 27
-
-#define DISTANCE_THRESHOLD 100
-#define MIN_DISTANCE 5
+// Sensores MH Serie Infravermelho (saída digital)
+#define SENSOR1_PIN 13
+#define SENSOR2_PIN 14
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -35,19 +47,10 @@ const unsigned long SEQUENCE_TIMEOUT = 2000;
 
 QueueHandle_t eventQueue;
 
-float getDistance(int trigPin, int echoPin)
+// Lê o sensor IR (LOW = objeto detectado, HIGH = sem detecção)
+bool isObjectDetected(int sensorPin)
 {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  
-  long duration = pulseIn(echoPin, HIGH, 30000);
-  if (duration == 0) return -1;
-  
-  float distance = duration * 0.034 / 2;
-  return distance;
+  return digitalRead(sensorPin) == LOW;
 }
 
 void setup_wifi()
@@ -92,32 +95,34 @@ void reconnect()
 
 void taskSensors(void *pvParameters)
 {
-  pinMode(SENSOR1_TRIG, OUTPUT);
-  pinMode(SENSOR1_ECHO, INPUT);
-  pinMode(SENSOR2_TRIG, OUTPUT);
-  pinMode(SENSOR2_ECHO, INPUT);
+  // Configura os pinos dos sensores IR como entrada
+  pinMode(SENSOR1_PIN, INPUT);
+  pinMode(SENSOR2_PIN, INPUT);
 
   bool sensor1Blocked = false;
   bool sensor2Blocked = false;
 
   while (1)
   {
-    float distance1 = getDistance(SENSOR1_TRIG, SENSOR1_ECHO);
-    float distance2 = getDistance(SENSOR2_TRIG, SENSOR2_ECHO);
+    // Lê os sensores IR (true = objeto detectado)
+    bool sensor1DetectsNow = isObjectDetected(SENSOR1_PIN);
+    bool sensor2DetectsNow = isObjectDetected(SENSOR2_PIN);
 
-    bool sensor1DetectsNow = (distance1 > MIN_DISTANCE && distance1 < DISTANCE_THRESHOLD);
-    bool sensor2DetectsNow = (distance2 > MIN_DISTANCE && distance2 < DISTANCE_THRESHOLD);
+    Serial.printf("[DEBUG] S1: %s | S2: %s\n", 
+                  sensor1DetectsNow ? "DETECTADO" : "livre", 
+                  sensor2DetectsNow ? "DETECTADO" : "livre");
 
+    // Sensor 1 detectou objeto (borda de subida)
     if (!sensor1Blocked && sensor1DetectsNow)
     {
       sensor1Blocked = true;
-      Serial.printf(">>> SENSOR 1 DISPAROU - Distancia: %.1f cm\n", distance1);
+      Serial.println(">>> SENSOR 1 DISPAROU");
       
       if (currentState == WAITING)
       {
         currentState = SENSOR1_ACTIVE;
         sequenceStartTime = millis();
-        Serial.printf("Sensor 1 activated (dist: %.1f cm)\n", distance1);
+        Serial.println("Sensor 1 ativado - aguardando sequencia");
       }
       else if (currentState == SENSOR2_ACTIVE)
       {
@@ -125,22 +130,23 @@ void taskSensors(void *pvParameters)
         {
           int event = -1;
           xQueueSend(eventQueue, &event, portMAX_DELAY);
-          Serial.println("EXIT detected");
+          Serial.println("EXIT detectada (S2 -> S1)");
         }
         currentState = WAITING;
       }
     }
     
+    // Sensor 2 detectou objeto (borda de subida)
     if (!sensor2Blocked && sensor2DetectsNow)
     {
       sensor2Blocked = true;
-      Serial.printf(">>> SENSOR 2 DISPAROU - Distancia: %.1f cm\n", distance2);
+      Serial.println(">>> SENSOR 2 DISPAROU");
       
       if (currentState == WAITING)
       {
         currentState = SENSOR2_ACTIVE;
         sequenceStartTime = millis();
-        Serial.printf("Sensor 2 activated (dist: %.1f cm)\n", distance2);
+        Serial.println("Sensor 2 ativado - aguardando sequencia");
       }
       else if (currentState == SENSOR1_ACTIVE)
       {
@@ -148,22 +154,24 @@ void taskSensors(void *pvParameters)
         {
           int event = 1;
           xQueueSend(eventQueue, &event, portMAX_DELAY);
-          Serial.println("ENTRY detected");
+          Serial.println("ENTRY detectada (S1 -> S2)");
         }
         currentState = WAITING;
       }
     }
 
+    // Libera os bloqueios quando não há mais detecção
     if (!sensor1DetectsNow) sensor1Blocked = false;
     if (!sensor2DetectsNow) sensor2Blocked = false;
 
+    // Timeout da sequência
     if (currentState != WAITING && (millis() - sequenceStartTime) > SEQUENCE_TIMEOUT)
     {
       currentState = WAITING;
-      Serial.println("Sequence timeout - reset to WAITING");
+      Serial.println("Timeout da sequencia - voltando para WAITING");
     }
 
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(50));
   }
 }
 
