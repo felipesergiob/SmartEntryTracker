@@ -153,13 +153,13 @@ const uint16_t MQTT_PORT = 1883;
 - [x] Integração com FreeRTOS
 - [x] Comunicação MQTT
 - [x] Detecção de entrada/saída
+- [x] Broker MQTT no Raspberry Pi
 - [ ] Dashboard web (em desenvolvimento)
-- [ ] Broker MQTT no Raspberry Pi
 - [ ] Documentação completa (ABNT)
 
 ## Equipe
 
-_[Adicionar nomes dos membros da equipe]_
+Felipe Sérgio, Thiago Belo, Thiago Von Sohsten, Sergio Gouveia e Enzo Nunes
 
 ## Licença
 

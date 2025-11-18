@@ -187,22 +187,12 @@ schematics/
 - [ ] Relatório ABNT
 - [ ] Testes integrados
 
-## Cronograma
-
-| Data | Atividade | Status |
-|------|-----------|--------|
-| 18/11 | Checkpoint - Prototipação | ✅ |
-| 25/11 | Dashboard web básico | ⏳ |
-| 02/12 | Validação aplicação web | ⏳ |
-| 04/12 | Apresentação final | ⏳ |
-| 09/12 | Entrega artefatos | ⏳ |
-| 13/12 | Mostra Tech | ⏳ |
 
 ## Comandos Rápidos
 
 ### Compilar ESP32
 ```bash
-cd esp32-esp8266 && pio run -t upload
+cd esp32-esp8266 && pio run -t upload ou usar a extensao do vscode
 ```
 
 ### Testar MQTT
