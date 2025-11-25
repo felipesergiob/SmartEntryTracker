@@ -147,16 +147,6 @@ const uint16_t MQTT_PORT = 1883;
 - **Queue:** Comunicação entre tasks (10 elementos)
 - **Mutex:** Não necessário (dados compartilhados protegidos por design)
 
-## Status do Projeto
-
-- [x] Implementação do firmware ESP32
-- [x] Integração com FreeRTOS
-- [x] Comunicação MQTT
-- [x] Detecção de entrada/saída
-- [x] Broker MQTT no Raspberry Pi
-- [ ] Dashboard web (em desenvolvimento)
-- [ ] Documentação completa (ABNT)
-
 ## Equipe
 
 Felipe Sérgio, Thiago Belo, Thiago Von Sohsten, Sergio Gouveia e Enzo Nunes
