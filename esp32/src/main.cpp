@@ -2,10 +2,10 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-const char *ssid = "VIVOFIBRA-06A6";
-const char *password = "i3isPrAaJN";
+const char *ssid = "uaifai-tiradentes";
+const char *password = "bemvindoaocesar";
 
-const char *mqtt_server = "192.168.15.3";
+const char *mqtt_server = "172.26.71.24";
 const uint16_t MQTT_PORT = 1883;
 
 #define SENSOR1_PIN 13
