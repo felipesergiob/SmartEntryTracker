@@ -15,6 +15,6 @@ Felipe Sérgio, Thiago Belo, Thiago Von Sohsten, Sergio Gouveia e Enzo Nunes
 
 ## Para rodar
 
-INICIAR MQTT: ➜ SmartEntryTracker git:(master) mosquitto -c mosquitto.conf
-INICAR DASHBOARD: ➜  dashboard git:(master) yarn start
-INICIAR MONITORADOR DE HISTORICO: ➜  server git:(master) yarn start:dev
+- **INICIAR MQTT:**  ➜ SmartEntryTracker git:(master) mosquitto -c mosquitto.conf
+- **INICAR DASHBOARD:** ➜  dashboard git:(master) yarn start
+- **INICIAR MONITORADOR DE HISTORICO:** ➜  server git:(master) yarn start:dev
