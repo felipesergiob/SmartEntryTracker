@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AppShell,
   Container,
@@ -11,7 +11,8 @@ import {
   Stack,
   RingProgress,
   Center,
-  ThemeIcon
+  ThemeIcon,
+  Tabs
 } from '@mantine/core';
 import {
   IconDoor,
@@ -21,16 +22,20 @@ import {
   IconPlugConnected,
   IconPlugConnectedX,
   IconWalk,
-  IconPercentage
+  IconPercentage,
+  IconChartLine,
+  IconHistory
 } from '@tabler/icons-react';
 import { useMqtt } from './hooks/useMqtt';
 import { EventsList } from './components/EventsList';
 import { ActivityChart } from './components/ActivityChart';
 import { PeakHours } from './components/PeakHours';
+import { History } from './components/History';
 import { MQTT_CONFIG } from '../config';
 
 function App() {
   const mqttData = useMqtt(MQTT_CONFIG.broker, MQTT_CONFIG.topics);
+  const [activeTab, setActiveTab] = useState('realtime');
 
   const stats = useMemo(() => {
     const entries = mqttData.events.filter(e => 
@@ -91,9 +96,7 @@ function App() {
       <AppShell.Main>
         <Container size="xl">
           <Stack gap="xl">
-            {/* Cards de Estatísticas */}
             <Grid>
-              {/* Pessoas no Local */}
               <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Stack gap="xs" align="center">
@@ -153,7 +156,6 @@ function App() {
                 </Card>
               </Grid.Col>
 
-              {/* Total de Entradas */}
               <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Group justify="space-between" mb="xs">
@@ -171,7 +173,6 @@ function App() {
                 </Card>
               </Grid.Col>
 
-              {/* Total de Saídas */}
               <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Group justify="space-between" mb="xs">
@@ -189,7 +190,6 @@ function App() {
                 </Card>
               </Grid.Col>
 
-              {/* Taxa de Conversão */}
               <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Group justify="space-between" mb="xs">
@@ -208,14 +208,34 @@ function App() {
               </Grid.Col>
             </Grid>
 
-            {/* Horários de Pico */}
-            <PeakHours events={mqttData.events} />
+            <Tabs value={activeTab} onChange={setActiveTab}>
+              <Tabs.List>
+                <Tabs.Tab 
+                  value="realtime" 
+                  leftSection={<IconChartLine size={16} />}
+                >
+                  Tempo Real
+                </Tabs.Tab>
+                <Tabs.Tab 
+                  value="history" 
+                  leftSection={<IconHistory size={16} />}
+                >
+                  Histórico
+                </Tabs.Tab>
+              </Tabs.List>
 
-            {/* Gráfico de Atividade */}
-            <ActivityChart events={mqttData.events} />
+              <Tabs.Panel value="realtime" pt="lg">
+                <Stack gap="xl">
+                  <PeakHours events={mqttData.events} />
+                  <ActivityChart events={mqttData.events} />
+                  <EventsList events={mqttData.events.slice(0, 15)} />
+                </Stack>
+              </Tabs.Panel>
 
-            {/* Lista de Eventos */}
-            <EventsList events={mqttData.events.slice(0, 15)} />
+              <Tabs.Panel value="history" pt="lg">
+                <History />
+              </Tabs.Panel>
+            </Tabs>
           </Stack>
         </Container>
       </AppShell.Main>

@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@mantine/core": "^7.3.2",
+    "@mantine/dates": "^7.17.8",
     "@mantine/hooks": "^7.3.2",
     "@tabler/icons-react": "^2.44.0",
+    "dayjs": "^1.11.19",
     "mqtt": "^5.3.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -26,4 +28,3 @@
     "vite-plugin-node-polyfills": "^0.21.0"
   }
 }
-
