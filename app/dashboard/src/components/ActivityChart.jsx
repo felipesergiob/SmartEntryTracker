@@ -37,11 +37,11 @@ export const ActivityChart = ({ events }) => {
 
   return (
     <Card shadow="md" padding="lg" radius="md" withBorder>
-      <Group justify="space-between" mb="md">
-        <Title order={3}>📊 Atividade em Tempo Real</Title>
+      <Group gap="xs" mb="md">
         <ThemeIcon size="lg" radius="md" variant="light" color="cyan">
           <IconChartLine size={20} />
         </ThemeIcon>
+        <Title order={3}>Atividade em Tempo Real</Title>
       </Group>
 
       <ResponsiveContainer width="100%" height={300}>

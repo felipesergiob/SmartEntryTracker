@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Title, Timeline, Text, Badge, ScrollArea, ThemeIcon } from '@mantine/core';
-import { IconLogin, IconLogout, IconClock, IconWalk } from '@tabler/icons-react';
+import { Card, Title, Timeline, Text, Badge, ScrollArea, ThemeIcon, Group } from '@mantine/core';
+import { IconLogin, IconLogout, IconClock, IconWalk, IconList } from '@tabler/icons-react';
 
 export const EventsList = ({ events }) => {
   const formatTime = (timestamp) => {
@@ -10,9 +10,12 @@ export const EventsList = ({ events }) => {
 
   return (
     <Card shadow="md" padding="lg" radius="md" withBorder>
-      <Title order={3} mb="md">
-        📋 Eventos Recentes
-      </Title>
+      <Group gap="xs" mb="md">
+        <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+          <IconList size={20} />
+        </ThemeIcon>
+        <Title order={3}>Eventos Recentes</Title>
+      </Group>
       
       <ScrollArea h={400}>
         {events.length === 0 ? (

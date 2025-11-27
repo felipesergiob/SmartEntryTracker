@@ -24,7 +24,6 @@ import {
   IconPercentage
 } from '@tabler/icons-react';
 import { useMqtt } from './hooks/useMqtt';
-import { calculatePeakHours } from './utils/analytics';
 import { EventsList } from './components/EventsList';
 import { ActivityChart } from './components/ActivityChart';
 import { PeakHours } from './components/PeakHours';
@@ -32,10 +31,6 @@ import { MQTT_CONFIG } from '../config';
 
 function App() {
   const mqttData = useMqtt(MQTT_CONFIG.broker, MQTT_CONFIG.topics);
-
-  const peakHours = useMemo(() => {
-    return calculatePeakHours(mqttData.events);
-  }, [mqttData.events]);
 
   const stats = useMemo(() => {
     const entries = mqttData.events.filter(e => 
@@ -73,22 +68,22 @@ function App() {
               <Title order={2}>Smart Entry Tracker</Title>
             </Group>
             
-            <Group>
-              <Badge
-                size="lg"
-                variant="dot"
-                color={mqttData.connected ? 'green' : 'red'}
-                leftSection={mqttData.connected ? <IconPlugConnected size={16} /> : <IconPlugConnectedX size={16} />}
-              >
-                {mqttData.connected ? 'Conectado' : 'Desconectado'}
-              </Badge>
-              
-              {mqttData.status && (
-                <Badge size="lg" variant="light" color="blue">
-                  {mqttData.status}
-                </Badge>
-              )}
-            </Group>
+            <Badge
+              size="lg"
+              variant="light"
+              color={mqttData.connected ? 'green' : 'red'}
+              leftSection={
+                <ThemeIcon 
+                  size="sm" 
+                  color={mqttData.connected ? 'green' : 'red'} 
+                  variant="transparent"
+                >
+                  {mqttData.connected ? <IconPlugConnected size={14} /> : <IconPlugConnectedX size={14} />}
+                </ThemeIcon>
+              }
+            >
+              {mqttData.connected ? 'Conectado' : 'Desconectado'}
+            </Badge>
           </Group>
         </Container>
       </AppShell.Header>
@@ -214,7 +209,7 @@ function App() {
             </Grid>
 
             {/* Horários de Pico */}
-            <PeakHours peakHours={peakHours} />
+            <PeakHours events={mqttData.events} />
 
             {/* Gráfico de Atividade */}
             <ActivityChart events={mqttData.events} />
