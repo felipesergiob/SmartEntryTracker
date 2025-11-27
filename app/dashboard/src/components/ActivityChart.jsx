@@ -7,7 +7,6 @@ export const ActivityChart = ({ events }) => {
   const chartData = useMemo(() => {
     if (!events || events.length === 0) return [];
 
-    // Agrupar eventos por minuto
     const groupedByMinute = events.reduce((acc, event) => {
       if (!event.receivedAt) return acc;
       
@@ -15,13 +14,15 @@ export const ActivityChart = ({ events }) => {
       const minute = `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
       
       if (!acc[minute]) {
-        acc[minute] = { time: minute, entradas: 0, saidas: 0 };
+        acc[minute] = { time: minute, entradas: 0, saidas: 0, passagens: 0 };
       }
       
       if (event.type === 'ENTRY' || event.type === 'entry') {
         acc[minute].entradas++;
-      } else {
+      } else if (event.type === 'EXIT' || event.type === 'exit') {
         acc[minute].saidas++;
+      } else if (event.type === 'PASSED_BY' || event.type === 'passed_by') {
+        acc[minute].passagens++;
       }
       
       return acc;
@@ -63,6 +64,15 @@ export const ActivityChart = ({ events }) => {
             }}
           />
           <Legend />
+          <Line 
+            type="monotone" 
+            dataKey="passagens" 
+            stroke="#9775fa" 
+            strokeWidth={2}
+            dot={{ fill: '#9775fa', r: 4 }}
+            activeDot={{ r: 6 }}
+            name="Passagens"
+          />
           <Line 
             type="monotone" 
             dataKey="entradas" 

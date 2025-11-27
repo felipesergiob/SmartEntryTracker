@@ -19,7 +19,9 @@ import {
   IconLogin,
   IconLogout,
   IconPlugConnected,
-  IconPlugConnectedX
+  IconPlugConnectedX,
+  IconWalk,
+  IconPercentage
 } from '@tabler/icons-react';
 import { useMqtt } from './hooks/useMqtt';
 import { calculatePeakHours } from './utils/analytics';
@@ -44,7 +46,15 @@ function App() {
       e.type === 'EXIT' || e.type === 'exit'
     ).length;
 
-    return { entries, exits };
+    const passedByCount = mqttData.events.filter(e => 
+      e.type === 'PASSED_BY' || e.type === 'passed_by'
+    ).length;
+
+    const conversionRate = passedByCount > 0 
+      ? ((entries / passedByCount) * 100).toFixed(1)
+      : 0;
+
+    return { entries, exits, passedByCount, conversionRate };
   }, [mqttData.events]);
 
   return (
@@ -89,12 +99,12 @@ function App() {
             {/* Cards de Estatísticas */}
             <Grid>
               {/* Pessoas no Local */}
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Stack gap="xs" align="center">
                     <RingProgress
-                      size={120}
-                      thickness={12}
+                      size={100}
+                      thickness={10}
                       sections={[
                         { 
                           value: mqttData.occupied ? 100 : 0, 
@@ -104,21 +114,21 @@ function App() {
                       label={
                         <Center>
                           <ThemeIcon
-                            size="xl"
+                            size="lg"
                             radius="xl"
                             variant="light"
                             color={mqttData.occupied ? 'green' : 'gray'}
                           >
-                            <IconUsers size={28} />
+                            <IconUsers size={24} />
                           </ThemeIcon>
                         </Center>
                       }
                     />
                     <Stack gap={0} align="center">
                       <Text size="xl" fw={700}>{mqttData.count}</Text>
-                      <Text size="sm" c="dimmed">Pessoas no Local</Text>
+                      <Text size="xs" c="dimmed">Pessoas no Local</Text>
                       <Badge 
-                        size="sm" 
+                        size="xs" 
                         variant="light" 
                         color={mqttData.occupied ? 'green' : 'gray'}
                         mt="xs"
@@ -130,11 +140,29 @@ function App() {
                 </Card>
               </Grid.Col>
 
-              {/* Total de Entradas */}
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              {/* Pessoas que Passaram */}
+              <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Group justify="space-between" mb="xs">
-                    <Text size="sm" c="dimmed" tt="uppercase" fw={700}>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                      Passaram
+                    </Text>
+                    <ThemeIcon size="lg" radius="md" variant="light" color="violet">
+                      <IconWalk size={20} />
+                    </ThemeIcon>
+                  </Group>
+                  <Text size="xl" fw={700}>{mqttData.passedBy}</Text>
+                  <Text size="xs" c="dimmed" mt={5}>
+                    Passaram na frente da loja
+                  </Text>
+                </Card>
+              </Grid.Col>
+
+              {/* Total de Entradas */}
+              <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
+                <Card shadow="md" padding="lg" radius="md" withBorder>
+                  <Group justify="space-between" mb="xs">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                       Entradas
                     </Text>
                     <ThemeIcon size="lg" radius="md" variant="light" color="blue">
@@ -143,16 +171,16 @@ function App() {
                   </Group>
                   <Text size="xl" fw={700}>{stats.entries}</Text>
                   <Text size="xs" c="dimmed" mt={5}>
-                    Total de entradas registradas
+                    Total de entradas
                   </Text>
                 </Card>
               </Grid.Col>
 
               {/* Total de Saídas */}
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Group justify="space-between" mb="xs">
-                    <Text size="sm" c="dimmed" tt="uppercase" fw={700}>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                       Saídas
                     </Text>
                     <ThemeIcon size="lg" radius="md" variant="light" color="orange">
@@ -161,49 +189,25 @@ function App() {
                   </Group>
                   <Text size="xl" fw={700}>{stats.exits}</Text>
                   <Text size="xs" c="dimmed" mt={5}>
-                    Total de saídas registradas
+                    Total de saídas
                   </Text>
                 </Card>
               </Grid.Col>
 
-              {/* Último Evento */}
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              {/* Taxa de Conversão */}
+              <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card shadow="md" padding="lg" radius="md" withBorder>
                   <Group justify="space-between" mb="xs">
-                    <Text size="sm" c="dimmed" tt="uppercase" fw={700}>
-                      Último Evento
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                      Conversão
                     </Text>
-                    <ThemeIcon 
-                      size="lg" 
-                      radius="md" 
-                      variant="light" 
-                      color={
-                        mqttData.lastEvent === 'ENTRY' || mqttData.lastEvent === 'entry' 
-                          ? 'blue' 
-                          : 'orange'
-                      }
-                    >
-                      {mqttData.lastEvent === 'ENTRY' || mqttData.lastEvent === 'entry' 
-                        ? <IconLogin size={20} /> 
-                        : <IconLogout size={20} />
-                      }
+                    <ThemeIcon size="lg" radius="md" variant="light" color="teal">
+                      <IconPercentage size={20} />
                     </ThemeIcon>
                   </Group>
-                  <Text size="xl" fw={700}>
-                    {mqttData.lastEvent === 'ENTRY' || mqttData.lastEvent === 'entry' 
-                      ? '📥' 
-                      : mqttData.lastEvent 
-                        ? '📤' 
-                        : '-'
-                    }
-                  </Text>
+                  <Text size="xl" fw={700}>{stats.conversionRate}%</Text>
                   <Text size="xs" c="dimmed" mt={5}>
-                    {mqttData.lastEvent === 'ENTRY' || mqttData.lastEvent === 'entry' 
-                      ? 'Entrada' 
-                      : mqttData.lastEvent 
-                        ? 'Saída' 
-                        : 'Aguardando...'
-                    }
+                    Taxa entrada/passagem
                   </Text>
                 </Card>
               </Grid.Col>

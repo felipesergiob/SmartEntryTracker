@@ -8,7 +8,8 @@ export const useMqtt = (brokerUrl, topics) => {
     lastEvent: null,
     events: [],
     status: 'Desconectado',
-    connected: false
+    connected: false,
+    passedBy: 0
   });
 
   const [client, setClient] = useState(null);
@@ -48,6 +49,9 @@ export const useMqtt = (brokerUrl, topics) => {
         else if (topic === 'entry/event') {
           newData.lastEvent = messageStr;
         } 
+        else if (topic === 'entry/passedby') {
+          newData.passedBy = parseInt(messageStr, 10);
+        }
         else if (topic === 'entry/data') {
           try {
             const eventData = JSON.parse(messageStr);
@@ -61,9 +65,14 @@ export const useMqtt = (brokerUrl, topics) => {
               ...prev.events
             ].slice(0, 50);
             
-            newData.count = eventData.people;
-            newData.occupied = eventData.occupied;
-            newData.lastEvent = eventData.type;
+            if (eventData.type === 'passed_by') {
+              newData.passedBy = eventData.total;
+              newData.lastEvent = eventData.type;
+            } else {
+              newData.count = eventData.people;
+              newData.occupied = eventData.occupied;
+              newData.lastEvent = eventData.type;
+            }
           } catch (err) {
             console.error('Erro ao parsear JSON:', err);
           }

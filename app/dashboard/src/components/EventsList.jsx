@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Title, Timeline, Text, Badge, ScrollArea, ThemeIcon } from '@mantine/core';
-import { IconLogin, IconLogout, IconClock } from '@tabler/icons-react';
+import { IconLogin, IconLogout, IconClock, IconWalk } from '@tabler/icons-react';
 
 export const EventsList = ({ events }) => {
   const formatTime = (timestamp) => {
@@ -21,43 +21,54 @@ export const EventsList = ({ events }) => {
           </Text>
         ) : (
           <Timeline active={-1} bulletSize={24} lineWidth={2}>
-            {events.map((event) => (
-              <Timeline.Item
-                key={event.id}
-                bullet={
-                  <ThemeIcon
-                    size={24}
-                    variant="filled"
-                    color={event.type === 'ENTRY' || event.type === 'entry' ? 'blue' : 'orange'}
-                    radius="xl"
-                  >
-                    {event.type === 'ENTRY' || event.type === 'entry' 
-                      ? <IconLogin size={16} /> 
-                      : <IconLogout size={16} />
-                    }
-                  </ThemeIcon>
-                }
-                title={
-                  <Badge 
-                    variant="light" 
-                    color={event.type === 'ENTRY' || event.type === 'entry' ? 'blue' : 'orange'}
-                  >
-                    {event.type === 'ENTRY' || event.type === 'entry' ? 'Entrada' : 'Saída'}
-                  </Badge>
-                }
-              >
-                <Text size="sm" c="dimmed" mt={4}>
-                  <IconClock size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                  {event.receivedAt 
-                    ? formatTime(event.receivedAt)
-                    : `${(event.timestamp / 1000).toFixed(0)}s`
+            {events.map((event) => {
+              const isEntry = event.type === 'ENTRY' || event.type === 'entry';
+              const isExit = event.type === 'EXIT' || event.type === 'exit';
+              const isPassedBy = event.type === 'PASSED_BY' || event.type === 'passed_by';
+              
+              const eventColor = isEntry ? 'blue' : isExit ? 'orange' : 'violet';
+              const eventLabel = isEntry ? 'Entrada' : isExit ? 'Saída' : 'Passou na Frente';
+              const eventIcon = isEntry ? <IconLogin size={16} /> : isExit ? <IconLogout size={16} /> : <IconWalk size={16} />;
+              
+              return (
+                <Timeline.Item
+                  key={event.id}
+                  bullet={
+                    <ThemeIcon
+                      size={24}
+                      variant="filled"
+                      color={eventColor}
+                      radius="xl"
+                    >
+                      {eventIcon}
+                    </ThemeIcon>
                   }
-                </Text>
-                <Text size="sm" mt={4}>
-                  👥 {event.people} {event.people === 1 ? 'pessoa' : 'pessoas'}
-                </Text>
-              </Timeline.Item>
-            ))}
+                  title={
+                    <Badge variant="light" color={eventColor}>
+                      {eventLabel}
+                    </Badge>
+                  }
+                >
+                  <Text size="sm" c="dimmed" mt={4}>
+                    <IconClock size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                    {event.receivedAt 
+                      ? formatTime(event.receivedAt)
+                      : `${(event.timestamp / 1000).toFixed(0)}s`
+                    }
+                  </Text>
+                  {!isPassedBy && event.people !== undefined && (
+                    <Text size="sm" mt={4}>
+                      👥 {event.people} {event.people === 1 ? 'pessoa' : 'pessoas'}
+                    </Text>
+                  )}
+                  {isPassedBy && event.total !== undefined && (
+                    <Text size="sm" mt={4}>
+                      🚶 Total: {event.total}
+                    </Text>
+                  )}
+                </Timeline.Item>
+              );
+            })}
           </Timeline>
         )}
       </ScrollArea>
