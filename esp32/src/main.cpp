@@ -10,12 +10,14 @@ const uint16_t MQTT_PORT = 1883;
 
 #define SENSOR1_PIN 13
 #define SENSOR2_PIN 14
+#define SENSOR3_PIN 27 
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 int peopleInside = 0;
 bool occupied = false;
+int peoplePassedBy = 0;
 
 enum DetectionState
 {
@@ -79,14 +81,17 @@ void taskSensors(void *pvParameters)
 {
   pinMode(SENSOR1_PIN, INPUT);
   pinMode(SENSOR2_PIN, INPUT);
+  pinMode(SENSOR3_PIN, INPUT);
 
   bool sensor1Blocked = false;
   bool sensor2Blocked = false;
+  bool sensor3Blocked = false;
 
   while (1)
   {
     bool sensor1DetectsNow = isObjectDetected(SENSOR1_PIN);
     bool sensor2DetectsNow = isObjectDetected(SENSOR2_PIN);
+    bool sensor3DetectsNow = isObjectDetected(SENSOR3_PIN);
 
     if (!sensor1Blocked && sensor1DetectsNow)
     {
@@ -134,8 +139,18 @@ void taskSensors(void *pvParameters)
       }
     }
 
+    if (!sensor3Blocked && sensor3DetectsNow)
+    {
+      sensor3Blocked = true;
+      Serial.println(">>> SENSOR 3 DISPAROU - Alguem passou na frente");
+      
+      int event = 0;
+      xQueueSend(eventQueue, &event, portMAX_DELAY);
+    }
+
     if (!sensor1DetectsNow) sensor1Blocked = false;
     if (!sensor2DetectsNow) sensor2Blocked = false;
+    if (!sensor3DetectsNow) sensor3Blocked = false;
 
     if (currentState != WAITING && (millis() - sequenceStartTime) > SEQUENCE_TIMEOUT)
     {
@@ -161,7 +176,26 @@ void taskMQTT(void *pvParameters)
 
     if (xQueueReceive(eventQueue, &event, 0) == pdTRUE)
     {
-      if (event == 1)
+      if (event == 0)
+      {
+        peoplePassedBy++;
+        unsigned long timestamp = millis();
+
+        char msgPassedBy[20];
+        snprintf(msgPassedBy, 20, "%d", peoplePassedBy);
+
+        client.publish("entry/event", "PASSED_BY");
+        client.publish("entry/passedby", msgPassedBy);
+
+        char jsonMsg[150];
+        snprintf(jsonMsg, 150,
+                 "{\"type\":\"passed_by\",\"total\":%d,\"timestamp\":%lu}",
+                 peoplePassedBy, timestamp);
+        client.publish("entry/data", jsonMsg);
+
+        Serial.printf("PASSED_BY - Total: %d\n", peoplePassedBy);
+      }
+      else if (event == 1)
       {
         peopleInside++;
         occupied = (peopleInside > 0);
