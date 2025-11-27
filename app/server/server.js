@@ -55,7 +55,8 @@ app.get('/api/events', (req, res) => {
   const params = [];
 
   if (date) {
-    query += ' AND date(datetime(received_at/1000, "unixepoch", "localtime")) = ?';
+    // Converte a data recebida para comparação no formato YYYY-MM-DD
+    query += ' AND date(received_at/1000, \'unixepoch\', \'localtime\') = ?';
     params.push(date);
   }
 
@@ -67,30 +68,40 @@ app.get('/api/events', (req, res) => {
   query += ' ORDER BY received_at DESC LIMIT ?';
   params.push(parseInt(limit));
 
-  const events = db.prepare(query).all(...params);
-  res.json(events);
+  try {
+    const events = db.prepare(query).all(...params);
+    res.json(events);
+  } catch (error) {
+    console.error('Erro ao buscar eventos:', error);
+    res.status(500).json({ error: 'Erro ao buscar eventos' });
+  }
 });
 
 app.get('/api/stats', (req, res) => {
-  const total = db.prepare('SELECT COUNT(*) as count FROM events').get();
-  
-  const byType = db.prepare(`
-    SELECT type, COUNT(*) as count 
-    FROM events 
-    GROUP BY type
-  `).all();
+  try {
+    const total = db.prepare('SELECT COUNT(*) as count FROM events').get();
+    
+    const byType = db.prepare(`
+      SELECT type, COUNT(*) as count 
+      FROM events 
+      GROUP BY type
+    `).all();
 
-  const byDate = db.prepare(`
-    SELECT 
-      date(datetime(received_at/1000, "unixepoch", "localtime")) as date,
-      COUNT(*) as count
-    FROM events
-    GROUP BY date
-    ORDER BY date DESC
-    LIMIT 30
-  `).all();
+    const byDate = db.prepare(`
+      SELECT 
+        date(received_at/1000, 'unixepoch', 'localtime') as date,
+        COUNT(*) as count
+      FROM events
+      GROUP BY date
+      ORDER BY date DESC
+      LIMIT 30
+    `).all();
 
-  res.json({ total: total.count, byType, byDate });
+    res.json({ total: total.count, byType, byDate });
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas:', error);
+    res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+  }
 });
 
 app.get('/api/events/hourly', (req, res) => {
@@ -98,7 +109,7 @@ app.get('/api/events/hourly', (req, res) => {
   
   let query = `
     SELECT 
-      strftime('%H', datetime(received_at/1000, "unixepoch", "localtime")) as hour,
+      strftime('%H', received_at/1000, 'unixepoch', 'localtime') as hour,
       type,
       COUNT(*) as count
     FROM events
@@ -106,14 +117,19 @@ app.get('/api/events/hourly', (req, res) => {
   
   const params = [];
   if (date) {
-    query += ' WHERE date(datetime(received_at/1000, "unixepoch", "localtime")) = ?';
+    query += ' WHERE date(received_at/1000, \'unixepoch\', \'localtime\') = ?';
     params.push(date);
   }
   
   query += ' GROUP BY hour, type ORDER BY hour';
   
-  const hourly = db.prepare(query).all(...params);
-  res.json(hourly);
+  try {
+    const hourly = db.prepare(query).all(...params);
+    res.json(hourly);
+  } catch (error) {
+    console.error('Erro ao buscar dados por hora:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados por hora' });
+  }
 });
 
 const PORT = 3001;

@@ -95,14 +95,25 @@ export const History = () => {
           <Title order={3}>Histórico de Eventos</Title>
         </Group>
 
-        <Group gap="md" mb="lg">
+        <Group gap="md" mb="lg" wrap="wrap">
           <DatePickerInput
             value={selectedDate}
             onChange={setSelectedDate}
-            placeholder="Selecione uma data"
-            leftSection={<IconCalendar size={16} />}
+            placeholder="Filtrar por data"
+            leftSection={<IconCalendar size={14} stroke={1.5} />}
             clearable
-            style={{ flex: 1 }}
+            size="sm"
+            locale="pt-br"
+            valueFormat="DD/MM/YYYY"
+            firstDayOfWeek={0}
+            maxDate={new Date()}
+            dropdownType="popover"
+            popoverProps={{ 
+              withinPortal: true,
+              shadow: 'md',
+              radius: 'md'
+            }}
+            style={{ minWidth: 200, maxWidth: 250 }}
           />
 
           <Select
@@ -114,8 +125,9 @@ export const History = () => {
               { value: 'exit', label: 'Saídas' },
               { value: 'passed_by', label: 'Passagens' }
             ]}
-            leftSection={<IconFilter size={16} />}
-            style={{ width: 200 }}
+            leftSection={<IconFilter size={14} stroke={1.5} />}
+            size="sm"
+            style={{ minWidth: 180, maxWidth: 200 }}
           />
         </Group>
 
@@ -193,4 +205,3 @@ export const History = () => {
     </Stack>
   );
 };
-
