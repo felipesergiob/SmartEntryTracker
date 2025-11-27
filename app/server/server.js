@@ -21,7 +21,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log('📁 Database:', dbPath);
+console.log('Database:', dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS events (
@@ -41,7 +41,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_received_at ON events(received_at);
 `);
 
-console.log('✅ Tabela de eventos criada/verificada');
+console.log('Tabela de eventos criada/verificada');
 
 const insertEvent = db.prepare(`
   INSERT INTO events (type, timestamp, people, total, occupied, raw_data, received_at)
@@ -118,20 +118,20 @@ app.get('/api/events/hourly', (req, res) => {
 
 const PORT = 3001;
 app.listen(PORT, () => {
-  console.log(`🌐 API REST rodando em http://localhost:${PORT}`);
+  console.log(`API REST rodando em http://localhost:${PORT}`);
 });
 
 const client = mqtt.connect(MQTT_BROKER);
 
 client.on('connect', () => {
-  console.log('🟢 Conectado ao MQTT broker:', MQTT_BROKER);
+  console.log('Conectado ao MQTT broker:', MQTT_BROKER);
   
   MQTT_TOPICS.forEach(topic => {
     client.subscribe(topic, (err) => {
       if (err) {
         console.error(`❌ Erro ao inscrever no tópico ${topic}:`, err);
       } else {
-        console.log(`📥 Inscrito no tópico: ${topic}`);
+        console.log(`Inscrito no tópico: ${topic}`);
       }
     });
   });
@@ -141,7 +141,7 @@ client.on('message', (topic, message) => {
   const messageStr = message.toString();
   const receivedAt = Date.now();
   
-  console.log(`\n📨 [${new Date().toLocaleTimeString()}] ${topic}: ${messageStr}`);
+  console.log(`\n [${new Date().toLocaleTimeString()}] ${topic}: ${messageStr}`);
 
   if (topic === 'entry/data') {
     try {
@@ -157,10 +157,10 @@ client.on('message', (topic, message) => {
         receivedAt
       );
       
-      console.log(`💾 Evento salvo: ${eventData.type}`);
+      console.log(`Evento salvo: ${eventData.type}`);
       
       const stats = db.prepare('SELECT COUNT(*) as total FROM events').get();
-      console.log(`📊 Total de eventos no banco: ${stats.total}`);
+      console.log(`Total de eventos no banco: ${stats.total}`);
       
     } catch (err) {
       console.error('❌ Erro ao processar/salvar evento:', err);
@@ -173,16 +173,16 @@ client.on('error', (err) => {
 });
 
 client.on('disconnect', () => {
-  console.log('🔴 Desconectado do MQTT');
+  console.log('Desconectado do MQTT');
 });
 
 process.on('SIGINT', () => {
-  console.log('\n👋 Encerrando servidor...');
+  console.log('\n Encerrando servidor...');
   client.end();
   db.close();
   process.exit(0);
 });
 
-console.log('\n🚀 Servidor MQTT Listener + SQLite iniciado!');
-console.log('📊 Aguardando eventos...\n');
+console.log('\n Servidor MQTT Listener + SQLite iniciado!');
+console.log('Aguardando eventos...\n');
 
