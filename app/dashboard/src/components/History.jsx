@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { IconHistory, IconCalendar, IconFilter } from '@tabler/icons-react';
 import { DatePickerInput } from '@mantine/dates';
+import { PeakHours } from './PeakHours';
 
 const API_URL = 'http://localhost:3001/api';
 
@@ -85,8 +86,18 @@ export const History = () => {
 
   const totalPages = Math.ceil(events.length / itemsPerPage);
 
+  const formattedEventsForChart = events.map(event => ({
+    ...event,
+    receivedAt: event.received_at,
+    type: event.type.toUpperCase()
+  }));
+
   return (
     <Stack gap="md">
+      {events.length > 0 && (
+        <PeakHours events={formattedEventsForChart} />
+      )}
+
       <Card shadow="md" padding="lg" radius="md" withBorder>
         <Group gap="xs" mb="md">
           <ThemeIcon size="lg" radius="md" variant="light" color="grape">
