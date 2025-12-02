@@ -46,16 +46,12 @@ function App() {
       e.type === 'EXIT' || e.type === 'exit'
     ).length;
 
-    const passedByCount = mqttData.events.filter(e => 
-      e.type === 'PASSED_BY' || e.type === 'passed_by'
-    ).length;
-
-    const conversionRate = passedByCount > 0 
-      ? ((entries / passedByCount) * 100).toFixed(1)
+    const conversionRate = mqttData.passedBy > 0 
+      ? ((entries / mqttData.passedBy) * 100).toFixed(1)
       : 0;
 
-    return { entries, exits, passedByCount, conversionRate };
-  }, [mqttData.events]);
+    return { entries, exits, conversionRate };
+  }, [mqttData.events, mqttData.passedBy]);
 
   return (
     <AppShell
