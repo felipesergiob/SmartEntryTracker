@@ -2,10 +2,10 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-const char *ssid = "uaifai-tiradentes";
-const char *password = "bemvindoaocesar";
+const char *ssid = "WIFI NAME";
+const char *password = "WIFI PASSWORD";
 
-const char *mqtt_server = "172.26.71.24";
+const char *mqtt_server = "MQTT SERVER IP";
 const uint16_t MQTT_PORT = 1883;
 
 #define SENSOR1_PIN 13

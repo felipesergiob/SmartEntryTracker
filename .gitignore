@@ -1,18 +1,20 @@
 # PlatformIO
-esp32-esp8266/.pio
-esp32-esp8266/.vscode
-esp32-esp8266/.pioenvs
-esp32-esp8266/.piolibdeps
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Node.js - IMPORTANTE: ignora node_modules em qualquer pasta
+**/node_modules/
 
 # Python
-raspberry-pi/__pycache__/
-raspberry-pi/*.pyc
-raspberry-pi/*.pyo
-raspberry-pi/*.pyd
-raspberry-pi/.Python
-raspberry-pi/venv/
-raspberry-pi/env/
-raspberry-pi/*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+*.egg-info/
 
 # IDE
 .vscode/
@@ -37,3 +39,6 @@ Thumbs.db
 *.bin
 *.hex
 *.elf
+
+# Database files
+*.db
