@@ -1,7 +1,7 @@
-# PlatformIO
-.pio/
-.pioenvs/
-.piolibdeps/
+# PlatformIO - Build files (IMPORTANTE: ignora em qualquer subpasta)
+**/.pio/
+**/.pioenvs/
+**/.piolibdeps/
 
 # Node.js - IMPORTANTE: ignora node_modules em qualquer pasta
 **/node_modules/
