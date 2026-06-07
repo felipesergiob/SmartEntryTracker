@@ -9,7 +9,10 @@ export const useMqtt = (brokerUrl, topics) => {
     events: [],
     status: 'Desconectado',
     connected: false,
-    passedBy: 0
+    passedBy: 0,
+    telemetrySamples: [],
+    telemetryPerf: null,
+    telemetryStatus: null
   });
 
   const [client, setClient] = useState(null);
@@ -79,6 +82,30 @@ export const useMqtt = (brokerUrl, topics) => {
         } 
         else if (topic === 'entry/status') {
           newData.status = messageStr;
+        }
+        else if (topic === 'telemetry/batch') {
+          try {
+            const batch = JSON.parse(messageStr);
+            const flat = (batch.samples || []).map((s, idx) => ({
+              sensor: s.s,
+              value: s.v,
+              idx
+            }));
+            // mantém uma janela das últimas ~300 amostras p/ o gráfico de dados
+            newData.telemetrySamples = [...prev.telemetrySamples, ...flat].slice(-300);
+          } catch (err) {
+            console.error('Erro ao parsear telemetry/batch:', err);
+          }
+        }
+        else if (topic === 'telemetry/perf') {
+          try {
+            newData.telemetryPerf = JSON.parse(messageStr);
+          } catch (err) {
+            console.error('Erro ao parsear telemetry/perf:', err);
+          }
+        }
+        else if (topic === 'telemetry/status') {
+          newData.telemetryStatus = messageStr;
         }
 
         return newData;

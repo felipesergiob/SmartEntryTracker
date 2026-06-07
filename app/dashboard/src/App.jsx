@@ -24,13 +24,15 @@ import {
   IconWalk,
   IconPercentage,
   IconChartLine,
-  IconHistory
+  IconHistory,
+  IconCpu
 } from '@tabler/icons-react';
 import { useMqtt } from './hooks/useMqtt';
 import { EventsList } from './components/EventsList';
 import { ActivityChart } from './components/ActivityChart';
 import { PeakHours } from './components/PeakHours';
 import { History } from './components/History';
+import { TelemetryPanel } from './components/TelemetryPanel';
 import { MQTT_CONFIG } from '../config';
 
 function App() {
@@ -212,11 +214,17 @@ function App() {
                 >
                   Tempo Real
                 </Tabs.Tab>
-                <Tabs.Tab 
-                  value="history" 
+                <Tabs.Tab
+                  value="history"
                   leftSection={<IconHistory size={16} />}
                 >
                   Histórico
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="telemetry"
+                  leftSection={<IconCpu size={16} />}
+                >
+                  Telemetria
                 </Tabs.Tab>
               </Tabs.List>
 
@@ -230,6 +238,14 @@ function App() {
 
               <Tabs.Panel value="history" pt="lg">
                 <History />
+              </Tabs.Panel>
+
+              <Tabs.Panel value="telemetry" pt="lg">
+                <TelemetryPanel
+                  samples={mqttData.telemetrySamples}
+                  perf={mqttData.telemetryPerf}
+                  status={mqttData.telemetryStatus}
+                />
               </Tabs.Panel>
             </Tabs>
           </Stack>

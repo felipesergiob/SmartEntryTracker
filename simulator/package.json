@@ -1,0 +1,19 @@
+{
+  "name": "smart-entry-tracker-simulator",
+  "version": "1.0.0",
+  "description": "Mock dos sensores/ESP32 para rodar a demo sem hardware",
+  "main": "simulator.js",
+  "type": "commonjs",
+  "scripts": {
+    "broker": "node broker.js",
+    "sim": "node simulator.js",
+    "start": "node simulator.js",
+    "seed": "node seed-history.js",
+    "telemetry": "node telemetry-sim.js"
+  },
+  "dependencies": {
+    "aedes": "^0.51.3",
+    "mqtt": "^5.3.4",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,279 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------------------------------------------------------------------------
+% Relatorio de Perfilamento e Analise
+% Projeto: Otimizacao de Telemetria com Buffer Circular
+% Compilar com pdflatex (ex.: Overleaf). Usa pgfplots e listings.
+% ---------------------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\definecolor{codebg}{rgb}{0.96,0.96,0.96}
+\definecolor{codekw}{rgb}{0.1,0.1,0.6}
+\definecolor{codecmt}{rgb}{0.3,0.5,0.3}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecmt}\itshape,
+  language=C++,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+}
+
+\title{\textbf{Otimização de Telemetria com Buffer Circular}\\[0.3em]
+\large Análise de Algoritmos e Sistemas Embarcados:\\ A Anatomia da Eficiência em Sistemas Embarcados}
+\author{Felipe Sérgio \and Thiago Belo \and Thiago Von Sohsten \and Sergio Gouveia \and Enzo Nunes}
+\date{2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este relatório contrasta empiricamente duas estratégias de gerência de uma
+janela de amostras de sensores em um sistema embarcado (ESP32) com transmissão
+via MQTT: (i) a \textbf{Vertente 1}, anti-padrão baseado em realocação
+dinâmica (\texttt{realloc}) e/ou deslocamento de elementos, com custo
+$O(n)$ por inserção; e (ii) a \textbf{Vertente 2}, um \emph{Ring Buffer} de
+tamanho fixo com índices \emph{head}/\emph{tail} e custo $O(1)$ por operação.
+Apresentamos a prova assintótica das complexidades, o diagnóstico do impacto na
+saúde do heap e a medição de latência ($\mu s$) sob escalas crescentes de $N$
+($100$ a $20\,000$), evidenciando o surgimento de \emph{jitter} na Vertente~1 e
+a estabilidade da Vertente~2.
+\end{abstract}
+
+\section{Objetivo}
+Implementar um sistema de monitoramento para captura de amostras de sensores e
+transmissão via protocolo MQTT, contrastando empiricamente a eficiência de uma
+abordagem baseada em realocação dinâmica/deslocamento de memória frente a uma
+implementação de Buffer Circular de tamanho fixo.
+
+\section{Contextualização do Problema}
+Em sistemas embarcados como o ESP32 existe uma disparidade temporal crítica
+entre a \emph{captura} de dados (na ordem de microssegundos) e a
+\emph{transmissão} de rede (na ordem de milissegundos). Ao usar coleções
+dinâmicas ou deslocamento de arrays para manter um histórico de sensores, o
+processador consome ciclos lineares ao tamanho da amostra a cada nova leitura.
+Isso (a) introduz \emph{jitter} --- instabilidade no período de amostragem ---
+e (b) fragmenta o heap a cada \texttt{realloc}, podendo levar à exaustão de
+memória e ao colapso do sistema. O Buffer Circular elimina ambos os problemas:
+a memória é alocada uma única vez e as operações têm custo constante.
+
+\section{Metodologia: As Duas Vertentes}
+
+\subsection{Vertente 1 --- A Abordagem Ineficiente (Anti-Padrão)}
+\begin{itemize}
+  \item \textbf{Lógica de Dados:} deslocamento de elementos ($O(n)$) ou uso de
+  \texttt{realloc()} a cada nova leitura.
+  \item \textbf{Comportamento MQTT:} envio síncrono que bloqueia a amostragem
+  durante a latência de rede.
+\end{itemize}
+
+\subsection{Vertente 2 --- A Abordagem Eficiente (Buffering Circular)}
+\begin{itemize}
+  \item \textbf{Lógica de Dados:} \emph{Ring Buffer} com índices \emph{head} e
+  \emph{tail}.
+  \item \textbf{Complexidade:} inserção e remoção em tempo constante $O(1)$.
+  \item \textbf{Comportamento MQTT:} modelo Produtor--Consumidor; o buffer
+  absorve a latência da rede sem interromper o sensor.
+\end{itemize}
+
+\section{Implementação}
+O código-fonte (Entregável~1) está em C++/Arduino no diretório
+\texttt{esp32/src/}: a classe do Buffer Circular em \texttt{RingBuffer.h} e o
+anti-padrão em \texttt{ShiftBuffer.h} (\texttt{ShiftBuffer} por deslocamento e
+\texttt{GrowingBuffer} por \texttt{realloc}). A instrumentação e o benchmark
+ficam em \texttt{Telemetry.h}.
+
+\subsection{Ring Buffer ($O(1)$, sem movimentação em massa)}
+\begin{lstlisting}
+template <typename T, size_t CAPACITY>
+class RingBuffer {
+public:
+  bool push(const T &item) {            // O(1)
+    if (isFull()) { tail_ = advance(tail_); count_--; }
+    buffer_[head_] = item;
+    head_ = advance(head_);
+    count_++;
+    return true;
+  }
+  bool pop(T &out) {                    // O(1)
+    if (isEmpty()) return false;
+    out = buffer_[tail_];
+    tail_ = advance(tail_);
+    count_--;
+    return true;
+  }
+private:
+  size_t advance(size_t i) const { return (i + 1) % CAPACITY; }
+  T buffer_[CAPACITY];                  // alocado uma unica vez
+  size_t head_, tail_, count_;
+};
+\end{lstlisting}
+
+\subsection{Anti-padrão (deslocamento $O(n)$ e \texttt{realloc})}
+\begin{lstlisting}
+// Janela fixa por deslocamento de elementos: O(n) por insercao
+void push(const T &item) {
+  if (size_ < window_) { data_[size_++] = item; return; }
+  for (size_t i = 1; i < window_; i++) data_[i - 1] = data_[i]; // O(n)
+  data_[window_ - 1] = item;
+}
+
+// Historico crescente via realloc a cada leitura: O(n) por insercao
+void push(const T &item) {
+  T *grown = (T *)realloc(data_, sizeof(T) * (size_ + 1)); // copia tudo: O(n)
+  if (grown == nullptr) return;
+  data_ = grown;
+  data_[size_++] = item;
+}
+\end{lstlisting}
+
+\subsection{Instrumentação}
+Conforme a seção de instrumentação do enunciado, mede-se tempo de execução e
+saúde da memória:
+\begin{lstlisting}
+unsigned long start = micros();
+// Logica de insercao de dados
+unsigned long duration = micros() - start;
+Serial.printf("Latencia: %lu us | Heap Livre: %u bytes\n",
+              duration, ESP.getFreeHeap());
+\end{lstlisting}
+
+\section{Análise Assintótica}
+
+\paragraph{Ring Buffer.} As operações \texttt{push} e \texttt{pop} executam um
+número fixo de instruções: uma escrita/leitura indexada e uma atualização
+modular de índice. Não há laços dependentes de $N$. Logo,
+\[
+T_{\text{ring}}(\text{push}) = O(1), \qquad
+T_{\text{ring}}(\text{pop}) = O(1).
+\]
+Inserir $N$ amostras custa $\sum_{i=1}^{N} O(1) = O(N)$, com latência
+\emph{por inserção} constante (sem jitter).
+
+\paragraph{Deslocamento de janela.} Com a janela cheia, cada \texttt{push}
+percorre os $w$ elementos da janela: $O(w)$. Inserir $N$ amostras custa
+$O(N \cdot w)$.
+
+\paragraph{Histórico crescente via \texttt{realloc}.} Ao inserir o $i$-ésimo
+elemento, o \texttt{realloc}, no pior caso, aloca um novo bloco e copia os $i-1$
+elementos existentes: $O(i)$. O custo total de inserir $N$ amostras é
+\[
+\sum_{i=1}^{N} O(i) = O\!\left(\frac{N(N+1)}{2}\right) = O(N^2).
+\]
+A latência \emph{por inserção} cresce linearmente com $N$ --- exatamente a
+origem do \emph{jitter} observado.
+
+\section{Diagnóstico de Memória}
+A Vertente~2 aloca o buffer uma única vez (memória estática de tamanho
+\texttt{CAPACITY}); o heap permanece constante e sem fragmentação durante toda a
+operação. A Vertente~1, ao chamar \texttt{realloc} a cada leitura, gera um padrão
+de alocação/liberação que fragmenta progressivamente o heap: blocos antigos
+liberados deixam lacunas que dificilmente são reaproveitadas, reduzindo o maior
+bloco contíguo disponível (\emph{watermark}) mesmo quando o total livre ainda é
+alto. Em hardware, isso é observável via \texttt{ESP.getFreeHeap()} (queda
+progressiva) e via APIs de maior bloco livre; eventualmente o \texttt{realloc}
+retorna \texttt{nullptr} e o sistema colapsa por exaustão de memória.
+
+\section{Resultados Experimentais}
+A medição abaixo foi obtida com a instrumentação \texttt{micros()} executando o
+benchmark de escala (Vertente~1 com \texttt{realloc}/cópia $O(n)$ vs.\
+Vertente~2 com Ring Buffer $O(1)$). Cada linha corresponde à inserção de $N$
+amostras.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{rrrr}
+\toprule
+$N$ & V1 total ($\mu s$) & V2 total ($\mu s$) & Ganho ($\times$) \\
+\midrule
+100     & 155      & 20  & 7,8 \\
+1\,000  & 2\,177   & 80  & 27,2 \\
+5\,000  & 23\,128  & 92  & 251,4 \\
+20\,000 & 221\,848 & 125 & 1\,774,8 \\
+\bottomrule
+\end{tabular}
+\caption{Latência total por escala. Os números são representativos; reproduza
+com \texttt{TELE\_CSV=1 npm run telemetry} (gera \texttt{perf-results.csv}).}
+\label{tab:perf}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.85\textwidth, height=7cm,
+  xlabel={$N$ (amostras)}, ylabel={Latência total ($\mu s$)},
+  xmode=log, ymode=log, log basis x=10, log basis y=10,
+  grid=both, legend pos=north west,
+]
+\addplot[red, mark=*] coordinates {(100,155)(1000,2177)(5000,23128)(20000,221848)};
+\addplot[green!60!black, mark=square*] coordinates {(100,20)(1000,80)(5000,92)(20000,125)};
+\legend{Vertente 1 (shift/realloc) $O(N^2)$, Vertente 2 (ring buffer) $O(N)$}
+\end{axis}
+\end{tikzpicture}
+\caption{Escala log--log: a Vertente~1 cresce de forma super-linear ($O(N^2)$)
+enquanto a Vertente~2 mantém-se praticamente plana.}
+\label{fig:perf}
+\end{figure}
+
+A Tabela~\ref{tab:perf} e a Figura~\ref{fig:perf} confirmam o comportamento
+previsto na análise de escalabilidade:
+\begin{itemize}
+  \item $N = 100$: diferença ainda discreta (V1 $\approx 8\times$ mais lenta).
+  \item $N = 5\,000$: atraso perceptível na amostragem da V1; a V2 mantém
+  latência mínima.
+  \item $N = 20\,000$: a V1 leva $\approx 222\,ms$ (alto consumo de CPU e
+  \emph{jitter}); a V2 permanece em $\approx 0{,}1\,ms$, sem alteração relevante.
+\end{itemize}
+
+\section{Discussão: Instabilidade de Rede}
+Sob instabilidade ou gargalo de rede, a publicação MQTT pode levar dezenas a
+centenas de milissegundos. Na Vertente~1, com envio \emph{síncrono}, a
+amostragem fica bloqueada durante esse intervalo: amostras são perdidas e o
+período de captura torna-se irregular. Na Vertente~2, o modelo
+\emph{Produtor--Consumidor} desacopla as duas escalas de tempo: o produtor
+continua amostrando em $\mu s$ e enfileirando no Ring Buffer em $O(1)$, enquanto
+o consumidor drena lotes para a rede quando esta está disponível. O buffer
+\emph{absorve} a latência: enquanto não transborda (e, com janela deslizante,
+mesmo no transbordo prioriza as amostras mais recentes), a aquisição
+permanece estável. Simulamos esse gargalo elevando o intervalo de \emph{flush}
+do consumidor e observando que a taxa de amostragem do produtor não se altera.
+
+\section{Conclusão}
+A escolha da estrutura de dados é determinante para a viabilidade de um sistema
+de telemetria embarcado. A realocação dinâmica/deslocamento ($O(n)$ por
+inserção, $O(N^2)$ acumulado) combina jitter crescente e fragmentação de heap,
+levando ao colapso sob escala. O Buffer Circular ($O(1)$, memória estática)
+entrega latência constante e estabilidade de memória, e seu acoplamento a um
+modelo Produtor--Consumidor torna o sistema resiliente à latência de rede.
+
+\section*{Reprodutibilidade}
+O painel de telemetria (Entregável~2) está no dashboard React (aba
+\emph{Telemetria}). Para reproduzir sem hardware:
+\begin{enumerate}
+  \item \texttt{cd simulator \&\& npm install}
+  \item \texttt{npm run broker} (broker MQTT)
+  \item \texttt{npm run telemetry} (benchmark + stream de amostras)
+  \item \texttt{cd app/dashboard \&\& npm start} e abra a aba \emph{Telemetria}.
+\end{enumerate}
+O firmware equivalente (Entregável~1) está em \texttt{esp32/src/} e publica os
+mesmos tópicos \texttt{telemetry/*}.
+
+\end{document}

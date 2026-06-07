@@ -131,6 +131,67 @@ yarn start:dev
 
 ---
 
+## 🎭 Modo Demo (sem hardware)
+
+Não tem o ESP32 nem os sensores em mãos? A pasta [`simulator/`](simulator/)
+substitui o microcontrolador por scripts Node que publicam **exatamente os
+mesmos tópicos MQTT** que o firmware — o server e o dashboard rodam sem nenhuma
+alteração. Inclui até um **broker MQTT embutido**, então nem o mosquitto é
+necessário.
+
+```bash
+cd simulator
+npm install
+npm run seed        # (opcional) popula o histórico com dias anteriores
+```
+
+Depois, em terminais separados, a partir da raiz do projeto:
+
+```bash
+cd simulator && npm run broker        # broker MQTT (no lugar do mosquitto)
+cd app/server && npm run start:dev    # server de histórico
+cd app/dashboard && npm start         # dashboard web
+cd simulator && npm run sim           # mock dos sensores (ESP32)
+```
+
+Detalhes e opções de configuração em [`simulator/README.md`](simulator/README.md).
+
+---
+
+## 🧮 Telemetria com Buffer Circular (Análise de Algoritmos)
+
+Além do rastreamento de entrada, o projeto traz uma camada de telemetria que
+contrasta **empiricamente** duas estratégias de gerência de uma janela de
+amostras de sensores transmitida via MQTT:
+
+- **Vertente 1 (anti-padrão):** deslocamento de array / `realloc()` a cada
+  leitura → `O(n)` por inserção (`O(n²)` acumulado), com *jitter* crescente e
+  fragmentação de heap.
+- **Vertente 2 (eficiente):** **Ring Buffer** de tamanho fixo com índices
+  head/tail → `O(1)` por inserção, latência constante e memória estável.
+
+**Entregáveis:**
+1. **Código-fonte** — firmware C++/Arduino com ambas as implementações:
+   [`esp32/src/RingBuffer.h`](esp32/src/RingBuffer.h),
+   [`esp32/src/ShiftBuffer.h`](esp32/src/ShiftBuffer.h) e
+   [`esp32/src/Telemetry.h`](esp32/src/Telemetry.h).
+2. **Painel de telemetria** — aba **Telemetria** no dashboard, com o gráfico de
+   amostras (lote via MQTT) e o gráfico de performance (latência μs × N).
+3. **Relatório** — [`docs/relatorio-buffer-circular.tex`](docs/relatorio-buffer-circular.tex)
+   (análise assintótica, diagnóstico de memória e discussão de instabilidade de
+   rede).
+
+Sem hardware, o benchmark roda pelo simulador (Node reproduz fielmente as
+classes C++):
+
+```bash
+cd simulator && npm run broker        # broker MQTT
+cd simulator && npm run telemetry     # benchmark + streaming de amostras
+cd app/dashboard && npm start         # abra a aba "Telemetria"
+```
+
+---
+
 ## 📄 Sobre o Projeto
 
 Projeto acadêmico desenvolvido para a disciplina de **Sistemas Embarcados**, demonstrando a aplicação prática de IoT no contexto de varejo e análise de dados em tempo real.

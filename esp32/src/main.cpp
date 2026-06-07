@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include "Telemetry.h"
 
 const char *ssid = "WIFI NAME";
 const char *password = "WIFI PASSWORD";
@@ -279,6 +280,11 @@ void setup()
       2,
       NULL,
       1);
+
+  // Camada de Telemetria com Buffer Circular:
+  // roda o benchmark de escala (Vertente 1 x Vertente 2) e sobe a task
+  // produtor-consumidor que transmite as amostras em lote via MQTT.
+  startTelemetry(client);
 
   Serial.println("System started!");
 }

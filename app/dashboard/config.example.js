@@ -5,7 +5,12 @@ export const MQTT_CONFIG = {
     'entry/count',
     'entry/occupied',
     'entry/data',
-    'entry/status'
+    'entry/status',
+    'entry/passedby',
+    'telemetry/sample',
+    'telemetry/batch',
+    'telemetry/perf',
+    'telemetry/status'
   ]
 };
 
