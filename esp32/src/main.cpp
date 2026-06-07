@@ -16,9 +16,11 @@ const uint16_t MQTT_PORT = 1883;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-int peopleInside = 0;
+int peopleInside = 0; // ocupacao atual = peopleEntered - peopleExited
 bool occupied = false;
-int peoplePassedBy = 0;
+int peoplePassedBy = 0;  // acumulado
+int peopleEntered = 0;   // acumulado (so aumenta)
+int peopleExited = 0;    // acumulado (so aumenta; nunca passa peopleEntered)
 
 enum DetectionState
 {
@@ -199,30 +201,38 @@ void taskMQTT(void *pvParameters)
       else if (event == 1)
       {
         peopleInside++;
+        peopleEntered++;
         occupied = (peopleInside > 0);
 
         unsigned long timestamp = millis();
 
         char msgPeople[20];
         snprintf(msgPeople, 20, "%d", peopleInside);
+        char msgEntered[20];
+        snprintf(msgEntered, 20, "%d", peopleEntered);
 
         client.publish("entry/event", "ENTRY");
-        client.publish("entry/count", msgPeople);
-        client.publish("entry/occupied", occupied ? "true" : "false");
+        client.publish("entry/count", msgPeople, true);
+        client.publish("entry/occupied", occupied ? "true" : "false", true);
+        client.publish("entry/entries", msgEntered, true);
 
-        char jsonMsg[150];
-        snprintf(jsonMsg, 150,
-                 "{\"type\":\"entry\",\"people\":%d,\"timestamp\":%lu,\"occupied\":%s}",
-                 peopleInside, timestamp, occupied ? "true" : "false");
+        char jsonMsg[180];
+        snprintf(jsonMsg, 180,
+                 "{\"type\":\"entry\",\"people\":%d,\"entries\":%d,\"exits\":%d,\"timestamp\":%lu,\"occupied\":%s}",
+                 peopleInside, peopleEntered, peopleExited, timestamp, occupied ? "true" : "false");
         client.publish("entry/data", jsonMsg);
 
-        Serial.printf("ENTRY - People: %d\n", peopleInside);
+        Serial.printf("ENTRY - Dentro: %d | Total entradas: %d\n", peopleInside, peopleEntered);
       }
       else if (event == -1)
       {
-        peopleInside--;
-        if (peopleInside < 0)
-          peopleInside = 0;
+        // O firmware so enfileira EXIT apos a sequencia S2->S1, que pressupoe
+        // alguem dentro; ainda assim protegemos o invariante peopleInside >= 0.
+        if (peopleInside > 0)
+        {
+          peopleInside--;
+          peopleExited++;
+        }
 
         occupied = (peopleInside > 0);
 
@@ -230,18 +240,21 @@ void taskMQTT(void *pvParameters)
 
         char msgPeople[20];
         snprintf(msgPeople, 20, "%d", peopleInside);
+        char msgExited[20];
+        snprintf(msgExited, 20, "%d", peopleExited);
 
         client.publish("entry/event", "EXIT");
-        client.publish("entry/count", msgPeople);
-        client.publish("entry/occupied", occupied ? "true" : "false");
+        client.publish("entry/count", msgPeople, true);
+        client.publish("entry/occupied", occupied ? "true" : "false", true);
+        client.publish("entry/exits", msgExited, true);
 
-        char jsonMsg[150];
-        snprintf(jsonMsg, 150,
-                 "{\"type\":\"exit\",\"people\":%d,\"timestamp\":%lu,\"occupied\":%s}",
-                 peopleInside, timestamp, occupied ? "true" : "false");
+        char jsonMsg[180];
+        snprintf(jsonMsg, 180,
+                 "{\"type\":\"exit\",\"people\":%d,\"entries\":%d,\"exits\":%d,\"timestamp\":%lu,\"occupied\":%s}",
+                 peopleInside, peopleEntered, peopleExited, timestamp, occupied ? "true" : "false");
         client.publish("entry/data", jsonMsg);
 
-        Serial.printf("EXIT - People: %d\n", peopleInside);
+        Serial.printf("EXIT - Dentro: %d | Total saidas: %d\n", peopleInside, peopleExited);
       }
     }
 

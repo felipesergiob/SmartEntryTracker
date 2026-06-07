@@ -10,6 +10,8 @@ export const useMqtt = (brokerUrl, topics) => {
     status: 'Desconectado',
     connected: false,
     passedBy: 0,
+    entries: 0,
+    exits: 0,
     telemetrySamples: [],
     telemetryPerf: null,
     telemetryStatus: null
@@ -55,6 +57,12 @@ export const useMqtt = (brokerUrl, topics) => {
         else if (topic === 'entry/passedby') {
           newData.passedBy = parseInt(messageStr, 10);
         }
+        else if (topic === 'entry/entries') {
+          newData.entries = parseInt(messageStr, 10);
+        }
+        else if (topic === 'entry/exits') {
+          newData.exits = parseInt(messageStr, 10);
+        }
         else if (topic === 'entry/data') {
           try {
             const eventData = JSON.parse(messageStr);
@@ -75,6 +83,9 @@ export const useMqtt = (brokerUrl, topics) => {
               newData.count = eventData.people;
               newData.occupied = eventData.occupied;
               newData.lastEvent = eventData.type;
+              // Totais acumulados (monotônicos) — Pessoas Dentro = entries - exits
+              if (typeof eventData.entries === 'number') newData.entries = eventData.entries;
+              if (typeof eventData.exits === 'number') newData.exits = eventData.exits;
             }
           } catch (err) {
             console.error('Erro ao parsear JSON:', err);
@@ -92,7 +103,7 @@ export const useMqtt = (brokerUrl, topics) => {
               idx
             }));
             // mantém uma janela das últimas ~300 amostras p/ o gráfico de dados
-            newData.telemetrySamples = [...prev.telemetrySamples, ...flat].slice(-300);
+            newData.telemetrySamples = [...prev.telemetrySamples, ...flat].slice(-600);
           } catch (err) {
             console.error('Erro ao parsear telemetry/batch:', err);
           }

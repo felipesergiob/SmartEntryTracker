@@ -140,9 +140,17 @@ client.on('connect', () => {
 
   const results = runBenchmark();
   const perf = JSON.stringify({ results });
-  client.publish('telemetry/perf', perf);
-  client.publish('telemetry/status', 'Benchmark concluido.');
-  console.log('[telemetry] resultado publicado em telemetry/perf');
+  // retain: true -> o broker guarda o último valor e entrega para quem assinar
+  // depois (ex.: o dashboard aberto/recarregado após o benchmark rodar).
+  client.publish('telemetry/perf', perf, { retain: true });
+  client.publish('telemetry/status', 'Benchmark concluido.', { retain: true });
+  console.log('[telemetry] resultado publicado em telemetry/perf (retained)');
+
+  // Reforço: re-publica o resultado periodicamente para clientes que chegam
+  // atrasados, mesmo que o broker não honre retained.
+  setInterval(() => {
+    client.publish('telemetry/perf', perf, { retain: true });
+  }, 15000);
 
   if (process.env.TELE_CSV === '1') {
     const csv =
@@ -169,20 +177,27 @@ client.on('error', (err) => console.error('[telemetry] erro MQTT:', err.message)
 const window = new RingBuffer(256);
 let tick = 0;
 
-function startStreaming() {
-  console.log('[telemetry] streaming de amostras iniciado (Ctrl+C para parar)');
+// Intervalo de amostragem do produtor (ms). Menor = mais rápido/agitado.
+const SAMPLE_MS = Number(process.env.TELE_SAMPLE_MS || 200);
+// Amplitude do ruído sobre o sinal senoidal (menor = onda mais limpa).
+const NOISE = Number(process.env.TELE_NOISE || 40);
 
-  // Produtor: ~20 amostras/s por sensor
+function startStreaming() {
+  console.log(
+    `[telemetry] streaming iniciado (amostra a cada ${SAMPLE_MS}ms, ruido +/-${NOISE})`
+  );
+
+  // Produtor: 1 tripla (sensores 1,2,3) por tick
   setInterval(() => {
     for (let sensor = 1; sensor <= 3; sensor++) {
       const base = 2048 + Math.round(900 * Math.sin((tick + sensor * 40) / 12));
-      const value = Math.max(0, base + Math.round((Math.random() - 0.5) * 120));
+      const value = Math.max(0, base + Math.round((Math.random() - 0.5) * NOISE));
       const sample = { sensor, value, ts: microsNow() };
       window.push(sample);
       client.publish('telemetry/sample', JSON.stringify(sample));
     }
     tick++;
-  }, 50);
+  }, SAMPLE_MS);
 
   // Consumidor: drena o buffer em lote a cada 1s (absorve a latência da rede)
   setInterval(() => {

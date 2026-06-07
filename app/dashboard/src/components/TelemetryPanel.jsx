@@ -35,12 +35,23 @@ const tooltipStyle = {
 const SamplesChart = ({ samples }) => {
   const data = useMemo(() => {
     if (!samples || samples.length === 0) return [];
-    // Mostra as últimas ~120 amostras, organizando por sensor.
-    const recent = samples.slice(-120);
-    return recent.map((s, i) => ({
-      i,
-      [`sensor${s.sensor}`]: s.value,
-    }));
+    // As amostras chegam intercaladas (s1, s2, s3, s1, ...). Para desenhar as
+    // linhas precisamos alinhar os 3 sensores na MESMA linha (mesmo índice de
+    // tempo), senão cada série fica cheia de buracos e o recharts não conecta.
+    // As amostras vêm em triplas ordenadas (s1, s2, s3). Começamos uma nova
+    // linha sempre que o sensor 1 aparece, mantendo a tripla alinhada e estável
+    // entre renders (sem "tremor" de fase entre os sensores).
+    const recent = samples.slice(-360); // ~120 triplas
+    const rows = [];
+    let current = null;
+    for (const s of recent) {
+      if (s.sensor === 1 || current === null) {
+        current = { i: rows.length };
+        rows.push(current);
+      }
+      current[`sensor${s.sensor}`] = s.value;
+    }
+    return rows.slice(-120);
   }, [samples]);
 
   if (data.length === 0) {
@@ -75,9 +86,9 @@ const SamplesChart = ({ samples }) => {
           <YAxis stroke="#909296" tick={{ fill: '#909296' }} />
           <Tooltip contentStyle={tooltipStyle} />
           <Legend />
-          <Line type="monotone" dataKey="sensor1" stroke="#339af0" dot={false} name="Sensor 1" />
-          <Line type="monotone" dataKey="sensor2" stroke="#51cf66" dot={false} name="Sensor 2" />
-          <Line type="monotone" dataKey="sensor3" stroke="#ff922b" dot={false} name="Sensor 3" />
+          <Line type="monotone" dataKey="sensor1" stroke="#339af0" dot={false} connectNulls isAnimationActive={false} name="Sensor 1" />
+          <Line type="monotone" dataKey="sensor2" stroke="#51cf66" dot={false} connectNulls isAnimationActive={false} name="Sensor 2" />
+          <Line type="monotone" dataKey="sensor3" stroke="#ff922b" dot={false} connectNulls isAnimationActive={false} name="Sensor 3" />
         </LineChart>
       </ResponsiveContainer>
     </Card>
@@ -129,14 +140,14 @@ const PerformanceChart = ({ perf }) => {
           O(n) vs O(1)
         </Badge>
       </Group>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
+      <ResponsiveContainer width="100%" height={340}>
+        <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 35 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#2c2e33" />
           <XAxis
             dataKey="n"
             stroke="#909296"
             tick={{ fill: '#909296' }}
-            label={{ value: 'N (amostras)', position: 'insideBottom', offset: -4, fill: '#909296' }}
+            label={{ value: 'N (amostras)', position: 'insideBottom', offset: -8, fill: '#909296' }}
           />
           <YAxis
             stroke="#909296"
@@ -144,7 +155,7 @@ const PerformanceChart = ({ perf }) => {
             label={{ value: 'μs / inserção', angle: -90, position: 'insideLeft', fill: '#909296' }}
           />
           <Tooltip contentStyle={tooltipStyle} />
-          <Legend />
+          <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: 24 }} />
           <Line
             type="monotone"
             dataKey="Vertente 1 (shift/realloc)"
@@ -193,7 +204,7 @@ const PerformanceChart = ({ perf }) => {
 export const TelemetryPanel = ({ samples, perf, status }) => {
   return (
     <Stack gap="xl">
-      <Card shadow="md" padding="lg" radius="md" withBorder>
+      {/* <Card shadow="md" padding="lg" radius="md" withBorder>
         <Group gap="xs">
           <ThemeIcon size="lg" radius="md" variant="light" color="blue">
             <IconCpu size={20} />
@@ -211,7 +222,7 @@ export const TelemetryPanel = ({ samples, perf, status }) => {
             </Badge>
           )}
         </Group>
-      </Card>
+      </Card> */}
 
       <Grid>
         <Grid.Col span={{ base: 12 }}>

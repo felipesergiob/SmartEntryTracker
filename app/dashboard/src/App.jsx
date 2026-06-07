@@ -40,20 +40,17 @@ function App() {
   const [activeTab, setActiveTab] = useState('realtime');
 
   const stats = useMemo(() => {
-    const entries = mqttData.events.filter(e => 
-      e.type === 'ENTRY' || e.type === 'entry'
-    ).length;
-    
-    const exits = mqttData.events.filter(e => 
-      e.type === 'EXIT' || e.type === 'exit'
-    ).length;
+    // Totais acumulados (monotônicos), vindos do firmware/simulador.
+    // Invariante: Pessoas Dentro = Entradas - Saídas, logo Saídas <= Entradas.
+    const entries = mqttData.entries;
+    const exits = mqttData.exits;
 
-    const conversionRate = mqttData.passedBy > 0 
+    const conversionRate = mqttData.passedBy > 0
       ? ((entries / mqttData.passedBy) * 100).toFixed(1)
       : 0;
 
     return { entries, exits, conversionRate };
-  }, [mqttData.events, mqttData.passedBy]);
+  }, [mqttData.entries, mqttData.exits, mqttData.passedBy]);
 
   return (
     <AppShell

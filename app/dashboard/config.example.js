@@ -7,6 +7,8 @@ export const MQTT_CONFIG = {
     'entry/data',
     'entry/status',
     'entry/passedby',
+    'entry/entries',
+    'entry/exits',
     'telemetry/sample',
     'telemetry/batch',
     'telemetry/perf',

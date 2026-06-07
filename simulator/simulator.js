@@ -26,8 +26,14 @@ const MIN_MS = Number(process.env.SIM_MIN_MS || 700);
 const MAX_MS = Number(process.env.SIM_MAX_MS || 2200);
 
 // Estado equivalente ao do firmware
-let peopleInside = 0;
-let peoplePassedBy = 0;
+let peopleInside = 0; // ocupação atual (sobe e desce) = totalEntries - totalExits
+let peoplePassedBy = 0; // acumulado, só aumenta
+let totalEntries = 0; // acumulado, só aumenta
+let totalExits = 0; // acumulado, só aumenta (nunca passa de totalEntries)
+
+// Mensagens de estado são publicadas com retain para que um dashboard que
+// conecta/recarrega depois receba os valores atuais imediatamente.
+const RETAIN = { retain: true };
 
 const client = mqtt.connect(MQTT_URL);
 
@@ -48,32 +54,51 @@ function randInt(min, max) {
 
 function publishEntry() {
   peopleInside++;
+  totalEntries++;
   const occupied = peopleInside > 0;
   const timestamp = Date.now();
 
   client.publish('entry/event', 'ENTRY');
-  client.publish('entry/count', String(peopleInside));
-  client.publish('entry/occupied', occupied ? 'true' : 'false');
+  client.publish('entry/count', String(peopleInside), RETAIN);
+  client.publish('entry/occupied', occupied ? 'true' : 'false', RETAIN);
+  client.publish('entry/entries', String(totalEntries), RETAIN);
   client.publish(
     'entry/data',
-    JSON.stringify({ type: 'entry', people: peopleInside, timestamp, occupied })
+    JSON.stringify({
+      type: 'entry',
+      people: peopleInside,
+      entries: totalEntries,
+      exits: totalExits,
+      timestamp,
+      occupied,
+    })
   );
-  console.log(`[sim] ENTRY  -> dentro: ${peopleInside}`);
+  console.log(`[sim] ENTRY  -> dentro: ${peopleInside} | total entradas: ${totalEntries}`);
 }
 
 function publishExit() {
+  // Só é chamada quando peopleInside > 0, então totalExits nunca passa totalEntries.
   peopleInside = Math.max(0, peopleInside - 1);
+  totalExits++;
   const occupied = peopleInside > 0;
   const timestamp = Date.now();
 
   client.publish('entry/event', 'EXIT');
-  client.publish('entry/count', String(peopleInside));
-  client.publish('entry/occupied', occupied ? 'true' : 'false');
+  client.publish('entry/count', String(peopleInside), RETAIN);
+  client.publish('entry/occupied', occupied ? 'true' : 'false', RETAIN);
+  client.publish('entry/exits', String(totalExits), RETAIN);
   client.publish(
     'entry/data',
-    JSON.stringify({ type: 'exit', people: peopleInside, timestamp, occupied })
+    JSON.stringify({
+      type: 'exit',
+      people: peopleInside,
+      entries: totalEntries,
+      exits: totalExits,
+      timestamp,
+      occupied,
+    })
   );
-  console.log(`[sim] EXIT   -> dentro: ${peopleInside}`);
+  console.log(`[sim] EXIT   -> dentro: ${peopleInside} | total saidas: ${totalExits}`);
 }
 
 function publishPassedBy() {
@@ -81,7 +106,7 @@ function publishPassedBy() {
   const timestamp = Date.now();
 
   client.publish('entry/event', 'PASSED_BY');
-  client.publish('entry/passedby', String(peoplePassedBy));
+  client.publish('entry/passedby', String(peoplePassedBy), RETAIN);
   client.publish(
     'entry/data',
     JSON.stringify({ type: 'passed_by', total: peoplePassedBy, timestamp })

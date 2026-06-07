@@ -87,8 +87,10 @@ inline void benchmarkScale(PubSubClient &client) {
   }
 
   json += "]}";
-  client.publish("telemetry/perf", json.c_str());
-  client.publish("telemetry/status", "Benchmark concluido.");
+  // retained=true: o broker guarda o último resultado e o entrega a quem
+  // assinar depois (dashboard aberto/recarregado após o benchmark rodar).
+  client.publish("telemetry/perf", json.c_str(), true);
+  client.publish("telemetry/status", "Benchmark concluido.", true);
 }
 
 // ---------------------------------------------------------------------------
