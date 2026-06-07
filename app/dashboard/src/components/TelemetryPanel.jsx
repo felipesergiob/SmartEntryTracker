@@ -28,20 +28,12 @@ const tooltipStyle = {
   borderRadius: '8px',
 };
 
-/**
- * Gráfico de Dados — amostras (em lote) recebidas via MQTT (telemetry/batch).
- * Reconstrói cada sensor como uma série para visualizar o sinal capturado.
- */
+// Grafico de dados: amostras em lote recebidas via telemetry/batch.
 const SamplesChart = ({ samples }) => {
   const data = useMemo(() => {
     if (!samples || samples.length === 0) return [];
-    // As amostras chegam intercaladas (s1, s2, s3, s1, ...). Para desenhar as
-    // linhas precisamos alinhar os 3 sensores na MESMA linha (mesmo índice de
-    // tempo), senão cada série fica cheia de buracos e o recharts não conecta.
-    // As amostras vêm em triplas ordenadas (s1, s2, s3). Começamos uma nova
-    // linha sempre que o sensor 1 aparece, mantendo a tripla alinhada e estável
-    // entre renders (sem "tremor" de fase entre os sensores).
-    const recent = samples.slice(-360); // ~120 triplas
+    // alinha cada tripla (s1, s2, s3) na mesma linha do grafico
+    const recent = samples.slice(-360);
     const rows = [];
     let current = null;
     for (const s of recent) {
@@ -86,19 +78,16 @@ const SamplesChart = ({ samples }) => {
           <YAxis stroke="#909296" tick={{ fill: '#909296' }} />
           <Tooltip contentStyle={tooltipStyle} />
           <Legend />
-          <Line type="monotone" dataKey="sensor1" stroke="#339af0" dot={false} connectNulls isAnimationActive={false} name="Sensor 1" />
-          <Line type="monotone" dataKey="sensor2" stroke="#51cf66" dot={false} connectNulls isAnimationActive={false} name="Sensor 2" />
-          <Line type="monotone" dataKey="sensor3" stroke="#ff922b" dot={false} connectNulls isAnimationActive={false} name="Sensor 3" />
+          <Line type="monotone" dataKey="sensor1" stroke="#339af0" dot={false} connectNulls isAnimationActive={false} name="Porta · Externo (S1)" />
+          <Line type="monotone" dataKey="sensor2" stroke="#51cf66" dot={false} connectNulls isAnimationActive={false} name="Porta · Interno (S2)" />
+          <Line type="monotone" dataKey="sensor3" stroke="#ff922b" dot={false} connectNulls isAnimationActive={false} name="Passagem · Vitrine (S3)" />
         </LineChart>
       </ResponsiveContainer>
     </Card>
   );
 };
 
-/**
- * Gráfico de Performance — latência (μs) por inserção das duas vertentes
- * conforme N cresce (telemetry/perf).
- */
+// Grafico de performance: latencia por insercao das duas vertentes x N.
 const PerformanceChart = ({ perf }) => {
   const data = useMemo(() => {
     if (!perf || !perf.results) return [];

@@ -35,11 +35,64 @@ let totalExits = 0; // acumulado, só aumenta (nunca passa de totalEntries)
 // conecta/recarrega depois receba os valores atuais imediatamente.
 const RETAIN = { retain: true };
 
+// Curva de movimento: em vez de um fluxo constante, o público vem em ONDAS
+// (períodos de "rush" e períodos calmos). Isso deixa o gráfico de Atividade
+// por minuto bem mais vivo, com picos e vales nítidos.
+const CYCLE_MS = Number(process.env.SIM_CYCLE_MS || 90000); // duração de um ciclo
+const simStart = Date.now();
+
+// --- Modo "dia acelerado" -------------------------------------------------
+// Se SIM_DAY_MIN > 0, o simulador roda um dia inteiro (OPEN..CLOSE) comprimido
+// nesse número de minutos reais, carimbando cada evento com a HORA SIMULADA.
+// Assim o gráfico de "Horários de Pico" mostra várias horas distintas durante
+// a demo, com mais movimento no almoço e no fim de tarde.
+const DAY_MIN = Number(process.env.SIM_DAY_MIN || 0);
+const DAY_MS = DAY_MIN * 60000;
+const OPEN_HOUR = 8;
+const CLOSE_HOUR = 22;
+const HOUR_WEIGHTS = {
+  8: 0.25, 9: 0.45, 10: 0.65, 11: 0.85, 12: 1.0, 13: 0.95,
+  14: 0.65, 15: 0.6, 16: 0.7, 17: 0.85, 18: 1.0, 19: 0.9,
+  20: 0.55, 21: 0.35,
+};
+
+// Retorna o horário simulado atual (epoch ms) e o peso de movimento da hora,
+// ou null quando o modo dia acelerado está desligado (tempo real normal).
+function simDay() {
+  if (!DAY_MS) return null;
+  const phase = ((Date.now() - simStart) % DAY_MS) / DAY_MS; // 0..1 ao longo do dia
+  const hourFloat = OPEN_HOUR + phase * (CLOSE_HOUR - OPEN_HOUR);
+  const hour = Math.floor(hourFloat);
+  const minute = Math.floor((hourFloat - hour) * 60);
+  const d = new Date();
+  d.setHours(hour, minute, Math.floor(Math.random() * 60), 0);
+  return { epochMs: d.getTime(), weight: HOUR_WEIGHTS[hour] ?? 0.3, hour };
+}
+
+// Timestamp do evento: hora simulada no modo dia, senão o relógio real.
+function eventTimestamp() {
+  const day = simDay();
+  return day ? day.epochMs : Date.now();
+}
+
+function movimento() {
+  const day = simDay();
+  if (day) return Math.max(0.12, day.weight); // segue a curva de movimento do dia
+  const phase = ((Date.now() - simStart) % CYCLE_MS) / CYCLE_MS; // 0..1
+  // 1 pico por ciclo: vai de ~0.15 (calmo) a 1.0 (pico) suavemente.
+  return 0.15 + 0.85 * Math.pow(Math.sin(Math.PI * phase), 2);
+}
+
 const client = mqtt.connect(MQTT_URL);
 
 client.on('connect', () => {
   console.log(`[sim] conectado ao broker em ${MQTT_URL}`);
   client.publish('entry/status', 'ESP32 Online (simulado)');
+  if (DAY_MS) {
+    console.log(`[sim] MODO DIA ACELERADO: 1 dia (${OPEN_HOUR}h-${CLOSE_HOUR}h) a cada ${DAY_MIN} min reais`);
+  } else {
+    console.log('[sim] modo tempo real (eventos na hora atual, em ondas)');
+  }
   console.log('[sim] gerando eventos... (Ctrl+C para parar)');
   scheduleNext();
 });
@@ -56,7 +109,7 @@ function publishEntry() {
   peopleInside++;
   totalEntries++;
   const occupied = peopleInside > 0;
-  const timestamp = Date.now();
+  const timestamp = eventTimestamp();
 
   client.publish('entry/event', 'ENTRY');
   client.publish('entry/count', String(peopleInside), RETAIN);
@@ -81,7 +134,7 @@ function publishExit() {
   peopleInside = Math.max(0, peopleInside - 1);
   totalExits++;
   const occupied = peopleInside > 0;
-  const timestamp = Date.now();
+  const timestamp = eventTimestamp();
 
   client.publish('entry/event', 'EXIT');
   client.publish('entry/count', String(peopleInside), RETAIN);
@@ -103,7 +156,7 @@ function publishExit() {
 
 function publishPassedBy() {
   peoplePassedBy++;
-  const timestamp = Date.now();
+  const timestamp = eventTimestamp();
 
   client.publish('entry/event', 'PASSED_BY');
   client.publish('entry/passedby', String(peoplePassedBy), RETAIN);
@@ -122,12 +175,15 @@ function publishPassedBy() {
  *    oscilar de forma natural em vez de só crescer.
  */
 function nextEvent() {
+  const f = movimento();
   const exitBias = Math.min(0.45, peopleInside * 0.05);
   if (peopleInside > 0 && Math.random() < exitBias) {
     publishExit();
     return;
   }
-  if (Math.random() < 0.35) {
+  // A chance de entrar sobe nos picos de movimento e cai nos vales.
+  const entryChance = 0.18 + 0.42 * f;
+  if (Math.random() < entryChance) {
     publishEntry();
   } else {
     publishPassedBy();
@@ -135,7 +191,8 @@ function nextEvent() {
 }
 
 function scheduleNext() {
-  const delay = randInt(MIN_MS, MAX_MS) * SPEED;
+  // Nos picos os eventos chegam mais rápido; nos vales, mais espaçados.
+  const delay = (randInt(MIN_MS, MAX_MS) * SPEED) / movimento();
   setTimeout(() => {
     nextEvent();
     scheduleNext();

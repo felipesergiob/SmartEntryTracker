@@ -1,28 +1,6 @@
-/**
- * Simulador da camada de Telemetria com Buffer Circular (mock do ESP32).
- *
- * Reproduz, sem hardware, exatamente o que o firmware (esp32/src/Telemetry.h)
- * faz: roda o benchmark de escala comparando as duas vertentes e transmite as
- * amostras em lote via MQTT. As classes abaixo são a tradução fiel, em JS, das
- * estruturas em C++ (RingBuffer.h / ShiftBuffer.h), preservando a complexidade:
- *
- *   - GrowingBuffer : copia todo o conteúdo a cada push  -> O(n)  (anti-padrão)
- *   - RingBuffer    : avança índices head/tail           -> O(1)
- *
- * Publica:
- *   telemetry/sample  : cada amostra capturada (stream)
- *   telemetry/batch   : lote drenado do ring buffer (produtor-consumidor)
- *   telemetry/perf    : resultado do benchmark (latência us x N)
- *   telemetry/status  : estado/instrumentação
- *
- * Uso:
- *   node telemetry-sim.js
- *
- * Variáveis de ambiente:
- *   MQTT_URL     broker (padrão mqtt://localhost:1883)
- *   TELE_SCALES  escalas N separadas por vírgula (padrão "100,1000,5000,20000")
- *   TELE_CSV     se "1", também grava perf-results.csv (para o relatório)
- */
+// Mock do ESP32 para a camada de telemetria (esp32/src/Telemetry.h).
+// Roda o benchmark das duas vertentes e transmite as amostras em lote via MQTT.
+// Variaveis de ambiente: MQTT_URL, TELE_SCALES, TELE_CSV.
 const fs = require('fs');
 const path = require('path');
 const mqtt = require('mqtt');
@@ -33,18 +11,14 @@ const SCALES = (process.env.TELE_SCALES || '100,1000,5000,20000')
   .map((s) => parseInt(s.trim(), 10))
   .filter(Boolean);
 
-// ---------------------------------------------------------------------------
-// Vertente 1 — Anti-padrão: histórico crescente copiado a cada push -> O(n)
-// (equivalente ao realloc()+cópia do GrowingBuffer em C++)
-// ---------------------------------------------------------------------------
+// Vertente 1 (anti-padrao): historico crescente, copia tudo a cada push -> O(n).
 class GrowingBuffer {
   constructor() {
     this.data = [];
   }
   push(item) {
-    // Simula realloc: aloca um novo bloco e COPIA todo o conteúdo anterior.
     const grown = new Array(this.data.length + 1);
-    for (let i = 0; i < this.data.length; i++) grown[i] = this.data[i]; // O(n)
+    for (let i = 0; i < this.data.length; i++) grown[i] = this.data[i];
     grown[this.data.length] = item;
     this.data = grown;
   }
@@ -53,9 +27,7 @@ class GrowingBuffer {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Vertente 2 — Ring Buffer de tamanho fixo: head/tail/count -> O(1)
-// ---------------------------------------------------------------------------
+// Vertente 2: ring buffer de tamanho fixo com head/tail -> O(1).
 class RingBuffer {
   constructor(capacity) {
     this.capacity = capacity;
@@ -66,7 +38,7 @@ class RingBuffer {
   }
   push(item) {
     if (this.count === this.capacity) {
-      this.tail = (this.tail + 1) % this.capacity; // descarta o mais antigo O(1)
+      this.tail = (this.tail + 1) % this.capacity;
       this.count--;
     }
     this.buffer[this.head] = item;
@@ -88,30 +60,23 @@ class RingBuffer {
   }
 }
 
-// micros() de alta resolução
 function microsNow() {
   return Number(process.hrtime.bigint() / 1000n);
 }
 
-// ---------------------------------------------------------------------------
-// Benchmark de escala — mesma lógica do benchmarkScale() do firmware.
-// ---------------------------------------------------------------------------
 function runBenchmark() {
   const results = [];
   for (const N of SCALES) {
-    // Vertente 1: O(n) por push
     const grow = new GrowingBuffer();
     let start = microsNow();
     for (let i = 0; i < N; i++) grow.push({ ts: i, sensor: 1, value: i & 0xffff });
     const shiftUs = microsNow() - start;
 
-    // Vertente 2: O(1) por push (janela fixa de 256)
     const ring = new RingBuffer(256);
     start = microsNow();
     for (let i = 0; i < N; i++) ring.push({ ts: i, sensor: 1, value: i & 0xffff });
     const ringUs = microsNow() - start;
 
-    // Latência média por inserção (us) — evidencia o jitter da Vertente 1.
     const shiftPer = shiftUs / N;
     const ringPer = ringUs / N;
 
@@ -140,14 +105,11 @@ client.on('connect', () => {
 
   const results = runBenchmark();
   const perf = JSON.stringify({ results });
-  // retain: true -> o broker guarda o último valor e entrega para quem assinar
-  // depois (ex.: o dashboard aberto/recarregado após o benchmark rodar).
+  // retained para o dashboard receber o resultado mesmo se conectar depois
   client.publish('telemetry/perf', perf, { retain: true });
   client.publish('telemetry/status', 'Benchmark concluido.', { retain: true });
-  console.log('[telemetry] resultado publicado em telemetry/perf (retained)');
+  console.log('[telemetry] resultado publicado em telemetry/perf');
 
-  // Reforço: re-publica o resultado periodicamente para clientes que chegam
-  // atrasados, mesmo que o broker não honre retained.
   setInterval(() => {
     client.publish('telemetry/perf', perf, { retain: true });
   }, 15000);
@@ -169,17 +131,12 @@ client.on('connect', () => {
 
 client.on('error', (err) => console.error('[telemetry] erro MQTT:', err.message));
 
-// ---------------------------------------------------------------------------
-// Produtor-Consumidor contínuo: o produtor enfileira amostras (sinal senoidal
-// + ruído, simulando 3 sensores) no ring buffer em O(1); o consumidor drena
-// lotes a cada 1s e publica em telemetry/batch.
-// ---------------------------------------------------------------------------
+// Produtor-consumidor: o produtor enfileira amostras no ring buffer e o
+// consumidor drena lotes para o MQTT.
 const window = new RingBuffer(256);
 let tick = 0;
 
-// Intervalo de amostragem do produtor (ms). Menor = mais rápido/agitado.
 const SAMPLE_MS = Number(process.env.TELE_SAMPLE_MS || 200);
-// Amplitude do ruído sobre o sinal senoidal (menor = onda mais limpa).
 const NOISE = Number(process.env.TELE_NOISE || 40);
 
 function startStreaming() {
@@ -187,7 +144,7 @@ function startStreaming() {
     `[telemetry] streaming iniciado (amostra a cada ${SAMPLE_MS}ms, ruido +/-${NOISE})`
   );
 
-  // Produtor: 1 tripla (sensores 1,2,3) por tick
+  // Produtor: uma tripla (sensores 1,2,3) por tick
   setInterval(() => {
     for (let sensor = 1; sensor <= 3; sensor++) {
       const base = 2048 + Math.round(900 * Math.sin((tick + sensor * 40) / 12));
@@ -199,7 +156,7 @@ function startStreaming() {
     tick++;
   }, SAMPLE_MS);
 
-  // Consumidor: drena o buffer em lote a cada 1s (absorve a latência da rede)
+  // Consumidor: drena o buffer em lote a cada 1s
   setInterval(() => {
     if (window.isEmpty()) return;
     const samples = [];

@@ -162,7 +162,14 @@ client.on('message', (topic, message) => {
   if (topic === 'entry/data') {
     try {
       const eventData = JSON.parse(messageStr);
-      
+
+      // Quando o evento traz um timestamp epoch válido (o simulador, inclusive
+      // no modo dia acelerado, carimba a hora simulada), usamos ele como
+      // received_at para o Histórico refletir o horário do evento. Hardware
+      // real envia millis() (número pequeno), então caímos no relógio atual.
+      const ts = eventData.timestamp;
+      const storedReceivedAt = typeof ts === 'number' && ts > 1e12 ? ts : receivedAt;
+
       insertEvent.run(
         eventData.type,
         eventData.timestamp || receivedAt,
@@ -170,7 +177,7 @@ client.on('message', (topic, message) => {
         eventData.total || null,
         eventData.occupied ? 1 : 0,
         messageStr,
-        receivedAt
+        storedReceivedAt
       );
       
       console.log(`Evento salvo: ${eventData.type}`);

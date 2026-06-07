@@ -7,6 +7,7 @@
   "scripts": {
     "broker": "node broker.js",
     "sim": "node simulator.js",
+    "sim:day": "SIM_DAY_MIN=4 node simulator.js",
     "start": "node simulator.js",
     "seed": "node seed-history.js",
     "telemetry": "node telemetry-sim.js"

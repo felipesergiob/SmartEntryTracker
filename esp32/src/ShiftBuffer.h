@@ -2,28 +2,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-/**
- * Vertente 1 — A Abordagem Ineficiente (Anti-Padrão).
- *
- * Este header contém as duas variantes do anti-padrão descritas no enunciado:
- *
- *  1) ShiftBuffer<T>   : janela de tamanho fixo mantida por DESLOCAMENTO de
- *                        elementos. Cada inserção com a janela cheia desloca
- *                        todos os elementos uma posição -> O(n) por inserção.
- *
- *  2) GrowingBuffer<T> : histórico que CRESCE dinamicamente chamando realloc()
- *                        a cada nova leitura. Cada realloc precisa, no pior
- *                        caso, copiar todo o conteúdo já existente -> O(n) por
- *                        inserção e O(n^2) para inserir n amostras, além de
- *                        fragmentar o heap.
- *
- * Ambas servem de contraste direto com o RingBuffer (O(1), sem movimentação
- * de memória em massa).
- */
+// Vertente 1 (anti-padrao). Duas variantes para comparacao:
+//   ShiftBuffer   -> janela fixa mantida por deslocamento de elementos (O(n)).
+//   GrowingBuffer -> historico que cresce via realloc a cada leitura (O(n)).
 
-// ---------------------------------------------------------------------------
-// 1) Janela fixa por deslocamento de elementos — O(n) por inserção
-// ---------------------------------------------------------------------------
 template <typename T>
 class ShiftBuffer {
 public:
@@ -33,17 +15,12 @@ public:
 
   ~ShiftBuffer() { free(data_); }
 
-  /**
-   * Insere mantendo a janela fixa. Quando cheia, descarta o elemento mais
-   * antigo deslocando TODOS os outros uma posição à esquerda: laço linear
-   * no tamanho da janela -> O(n).
-   */
   void push(const T &item) {
     if (size_ < window_) {
       data_[size_++] = item;
       return;
     }
-    // Janela cheia: desloca tudo (anti-padrão) — O(n)
+    // janela cheia: desloca todos uma posicao e descarta o mais antigo
     for (size_t i = 1; i < window_; i++) {
       data_[i - 1] = data_[i];
     }
@@ -64,9 +41,6 @@ private:
   T *data_;
 };
 
-// ---------------------------------------------------------------------------
-// 2) Histórico crescente via realloc() a cada leitura — O(n) e fragmentação
-// ---------------------------------------------------------------------------
 template <typename T>
 class GrowingBuffer {
 public:
@@ -74,15 +48,11 @@ public:
 
   ~GrowingBuffer() { free(data_); }
 
-  /**
-   * Realoca o bloco a cada nova amostra. O realloc, ao não conseguir expandir
-   * in-place, aloca um novo bloco e COPIA todo o conteúdo anterior -> O(n).
-   * Repetido n vezes => O(n^2) total e fragmentação progressiva do heap.
-   */
   void push(const T &item) {
+    // realloc copia todo o conteudo anterior -> O(n) por insercao
     T *grown = (T *)realloc(data_, sizeof(T) * (size_ + 1));
     if (grown == nullptr) {
-      return; // falha de alocação (heap esgotado/fragmentado)
+      return;
     }
     data_ = grown;
     data_[size_++] = item;

@@ -67,14 +67,21 @@ export const useMqtt = (brokerUrl, topics) => {
           try {
             const eventData = JSON.parse(messageStr);
             
+            // Usa o timestamp do evento quando for um epoch válido (modo dia
+            // acelerado do simulador, que carimba a hora simulada). Hardware
+            // real envia millis() (uptime, número pequeno), então caímos no
+            // relógio atual nesse caso.
+            const ts = eventData.timestamp;
+            const receivedAt = typeof ts === 'number' && ts > 1e12 ? new Date(ts) : new Date();
+
             newData.events = [
               {
                 ...eventData,
                 id: Date.now() + Math.random(),
-                receivedAt: new Date()
+                receivedAt
               },
               ...prev.events
-            ].slice(0, 50);
+            ].slice(0, 200);
             
             if (eventData.type === 'passed_by') {
               newData.passedBy = eventData.total;
@@ -102,7 +109,6 @@ export const useMqtt = (brokerUrl, topics) => {
               value: s.v,
               idx
             }));
-            // mantém uma janela das últimas ~300 amostras p/ o gráfico de dados
             newData.telemetrySamples = [...prev.telemetrySamples, ...flat].slice(-600);
           } catch (err) {
             console.error('Erro ao parsear telemetry/batch:', err);
