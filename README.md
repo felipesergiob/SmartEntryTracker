@@ -100,9 +100,9 @@ Interface moderna e intuitiva mostrando:
 
 ## 🎓 Desenvolvido por
 
-**Equipe:** Felipe Sérgio, Thiago Belo, Thiago Von Sohsten, Sergio Gouveia e Enzo Nunes  
-**Instituição:** Curso de Sistemas Embarcados  
-**Orientadores:** Prof. Bella Nunes | Prof. Jymmy Barreto
+**Equipe:** Felipe Sérgio, Thiago Belo, Luiz Felipe Soriano
+**Cadeiras:** Sistemas Embarcados e Analise de Algoritmos
+**Orientadores:** Prof. Bella Nunes | Prof. Jymmy Barreto | Marlon Ferreira
 
 ---
 
